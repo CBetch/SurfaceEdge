@@ -1,0 +1,11 @@
+# Data — parquet files must be downloaded locally via download_data.py
+data/**/*.parquet
+
+# Python
+__pycache__/
+*.py[cod]
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
