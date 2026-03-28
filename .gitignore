@@ -1,6 +1,9 @@
 # Data — parquet files must be downloaded locally via download_data.py
 data/**/*.parquet
 
+# datasets
+dataset/
+
 # Python
 __pycache__/
 *.py[cod]
