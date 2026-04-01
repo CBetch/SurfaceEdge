@@ -7,11 +7,9 @@ For each ticker and each trading day, produces:
     dataset/<ticker>/<date>_calls.png
     dataset/<ticker>/<date>_calls_labels.npy
     dataset/<ticker>/<date>_calls_scalars.npy
-    dataset/<ticker>/<date>_calls_meta.json
     dataset/<ticker>/<date>_puts.png
     dataset/<ticker>/<date>_puts_labels.npy
     dataset/<ticker>/<date>_puts_scalars.npy
-    dataset/<ticker>/<date>_puts_meta.json
 
 PNG channels (uint8, 0-255):
     R = implied_volatility          (normalized)
@@ -20,28 +18,23 @@ PNG channels (uint8, 0-255):
 
 Label matrices (.npy, float32):
     Shape: (HEIGHT, WIDTH)
-    Each cell = next-day mark price (bid/ask midpoint)
-    Contracts matched across days by contract_id.
+    Each cell = next-day percentage price change
+    label = (mark_t+1 - mark_t) / mark_t
     Cells with no next-day quote are 0.
 
 Scalar matrices (.npy, float32):
-    Shape: (HEIGHT, WIDTH, 4)
+    Shape: (HEIGHT, WIDTH, 7)
     Per-cell input features alongside the image:
-        [..., 0] = tau           (days to expiry)
-        [..., 1] = log_moneyness (log(strike/spot))
-        [..., 2] = is_call       (1.0 or 0.0)
-        [..., 3] = mark          (today's mark price)
+        [..., 0] = spot          (underlying price)
+        [..., 1] = strike        (split-adjusted strike price)
+        [..., 2] = tau           (days to expiry)
+        [..., 3] = log_moneyness (log(strike/spot))
+        [..., 4] = mark          (today's mark price)
+        [..., 5] = is_call       (1.0 for call, 0.0 for put)
+        [..., 6] = ticker_idx    (integer index into TICKERS list)
 
 Baseline for comparison:
-    Today's mark price (scalars[..., 3]) vs next-day mark (labels)
-
-Meta JSON:
-    {
-        "ticker":  "aapl",
-        "date":    "2024-01-02",
-        "is_call": true,
-        "spot":    185.20
-    }
+    Predicting 0.0 (no price change) for every cell.
 
 Usage:
     from dataset import build
@@ -49,7 +42,6 @@ Usage:
     build(ticker='aapl')  # single ticker
 """
 
-import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -67,14 +59,18 @@ HEIGHT = 60   # Y axis — moneyness bins
 
 # Fixed global bin edges — same for every ticker and every day
 # log-moneyness: log(strike/spot), 0 = ATM
-MONEYNESS_MIN  = -0.5
-MONEYNESS_MAX  =  1.5
+MONEYNESS_MIN  = -1.0
+MONEYNESS_MAX  =  1.0
 MONEYNESS_BINS = np.linspace(MONEYNESS_MIN, MONEYNESS_MAX, HEIGHT + 1)
 
 # Days to expiry
 TAU_MIN  = 1
 TAU_MAX  = 61
 TAU_BINS = np.linspace(TAU_MIN, TAU_MAX, WIDTH + 1)
+
+# Minimum number of non-zero label cells required to save a surface
+# Days below this threshold are skipped as too sparse to be useful
+MIN_NONZERO_CELLS = 100
 
 TICKERS = [
     "aapl", "abbv", "abt",   "acn",   "adbe", "aig",  "amd",  "amgn", "amt",  "amzn",
@@ -90,18 +86,10 @@ TICKERS = [
     "vz",   "wfc",  "wmt",   "xom",
 ]
 
+# Integer index lookup for ticker encoding in scalars
+TICKER_IDX = {t: i for i, t in enumerate(TICKERS)}
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def delete_folder():
-    import shutil
-
-    if DATASET_DIR.exists():
-        answer = input(f"Delete existing dataset directory '{DATASET_DIR}'? [y/N]: ").strip().lower()
-        if answer == "y":
-            shutil.rmtree(DATASET_DIR)
-            print(f"Deleted {DATASET_DIR}")
-        else:
-            print("Keeping existing files — already-complete days will be skipped.")
 
 def _normalize(arr: np.ndarray) -> np.ndarray:
     """Min-max normalize to [0, 1], handling constant arrays."""
@@ -115,18 +103,22 @@ def _build_surface(
     snapshot: pd.DataFrame,
     spot: float,
     is_call: bool,
+    ticker_idx: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """
     Convert a single-day, single-type options snapshot into fixed-size grids.
 
     snapshot must contain:
-        - 'label' column: next-day mark price
+        - 'label' column: percentage price change (mark_t+1 - mark_t) / mark_t
         - 'mark'  column: today's mark price
+        - 'strike' column: split-adjusted strike price
 
     Returns:
         image:         (HEIGHT, WIDTH, 3) uint8
-        label_grid:    (HEIGHT, WIDTH)    float32 — next-day mark per bin
-        scalar_grid:   (HEIGHT, WIDTH, 4) float32 — [tau, log_money, is_call, mark]
+        label_grid:    (HEIGHT, WIDTH)    float32 — next-day % price change
+        scalar_grid:   (HEIGHT, WIDTH, 7) float32 — [spot, strike, tau,
+                                                      log_money, mark,
+                                                      is_call, ticker_idx]
 
     Returns None if the snapshot is empty or has insufficient data.
     """
@@ -158,8 +150,9 @@ def _build_surface(
         iv        = ("implied_volatility", "mean"),
         oi        = ("open_interest",      "sum"),
         vol       = ("volume",             "sum"),
-        label     = ("label",              "mean"),  # next-day mark
-        mark      = ("mark",               "mean"),  # today's mark
+        label     = ("label",              "mean"),
+        mark      = ("mark",               "mean"),
+        strike    = ("strike",             "mean"),
         tau       = ("tau",                "mean"),
         log_money = ("log_money",          "mean"),
     ).reset_index()
@@ -169,19 +162,22 @@ def _build_surface(
     oi_grid     = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
     vol_grid    = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
     label_grid  = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
-    scalar_grid = np.zeros((HEIGHT, WIDTH, 4), dtype=np.float32)
+    scalar_grid = np.zeros((HEIGHT, WIDTH, 7), dtype=np.float32)
 
     rows = agg["y_bin"].values
     cols = agg["x_bin"].values
 
-    iv_grid[rows, cols]       = agg["iv"].values
-    oi_grid[rows, cols]       = np.log1p(agg["oi"].values)
-    vol_grid[rows, cols]      = np.log1p(agg["vol"].values)
-    label_grid[rows, cols]    = agg["label"].values
-    scalar_grid[rows, cols, 0] = agg["tau"].values
-    scalar_grid[rows, cols, 1] = agg["log_money"].values
-    scalar_grid[rows, cols, 2] = float(is_call)
-    scalar_grid[rows, cols, 3] = agg["mark"].values
+    iv_grid[rows, cols]        = agg["iv"].values
+    oi_grid[rows, cols]        = np.log1p(agg["oi"].values)
+    vol_grid[rows, cols]       = np.log1p(agg["vol"].values)
+    label_grid[rows, cols]     = agg["label"].values
+    scalar_grid[rows, cols, 0] = float(spot)
+    scalar_grid[rows, cols, 1] = agg["strike"].values
+    scalar_grid[rows, cols, 2] = agg["tau"].values
+    scalar_grid[rows, cols, 3] = agg["log_money"].values
+    scalar_grid[rows, cols, 4] = agg["mark"].values
+    scalar_grid[rows, cols, 5] = float(is_call)
+    scalar_grid[rows, cols, 6] = float(ticker_idx)
 
     # Normalize image channels and pack into uint8
     r = (_normalize(iv_grid)  * 255).astype(np.uint8)
@@ -193,7 +189,7 @@ def _build_surface(
 
 
 def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | None = None) -> None:
-    """Load raw parquets for one ticker and write PNGs, labels, scalars, and metadata."""
+    """Load raw parquets for one ticker and write PNGs, labels, and scalars."""
     options_path    = DATA_DIR / ticker / "options.parquet"
     underlying_path = DATA_DIR / ticker / "underlying.parquet"
 
@@ -213,7 +209,22 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
     opts["expiration"] = pd.to_datetime(opts["expiration"])
     und["date"]        = pd.to_datetime(und["date"])
 
-    # Build next-day mark lookup: contract_id + next_date -> next_mark
+    # Build cumulative split adjustment: for each date, multiply by all
+    # split coefficients that occurred AFTER that date to convert strikes
+    # to post-split terms, making all historical data comparable
+    splits = und[und["split_coefficient"] != 1.0][["date", "split_coefficient"]].copy()
+    splits["split_coefficient"] = splits["split_coefficient"].round()
+    splits = splits.sort_values("date")
+
+    unique_dates = sorted(opts["date"].unique())
+    adjustment_map = {}
+    for d in unique_dates:
+        future = splits[splits["date"] > d]["split_coefficient"]
+        adjustment_map[d] = float(future.prod()) if not future.empty else 1.0
+
+    opts["strike"] = opts["strike"] * opts["date"].map(adjustment_map)
+
+    # Compute next-day percentage price change label
     print(f"  [{ticker}] computing next-day labels ...")
     mark_lookup = opts[["contract_id", "date", "mark"]].copy()
     mark_lookup = mark_lookup.rename(columns={"mark": "next_mark", "date": "next_date"})
@@ -228,14 +239,18 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
         right_on=["contract_id", "next_date"],
         how="left",
     )
-    opts["label"] = opts["next_mark"]
-    opts = opts[opts["label"].notna()].copy()
+
+    # Percentage change: (mark_t+1 - mark_t) / mark_t
+    # Drop rows where mark is zero or next_mark is unavailable
+    opts = opts[opts["next_mark"].notna() & (opts["mark"] > 0)].copy()
+    opts["label"] = (opts["next_mark"] - opts["mark"]) / opts["mark"]
 
     if opts.empty:
         print(f"  [{ticker}] no labellable rows, skipping")
         return
 
-    out_dir = DATASET_DIR / ticker
+    out_dir    = DATASET_DIR / ticker
+    ticker_idx = TICKER_IDX[ticker]
     out_dir.mkdir(parents=True, exist_ok=True)
 
     dates = sorted(opts["date"].unique())
@@ -258,32 +273,27 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
             png_path    = out_dir / f"{date_str}_{option_type}.png"
             label_path  = out_dir / f"{date_str}_{option_type}_labels.npy"
             scalar_path = out_dir / f"{date_str}_{option_type}_scalars.npy"
-            meta_path   = out_dir / f"{date_str}_{option_type}_meta.json"
 
-            if png_path.exists() and label_path.exists() and scalar_path.exists() and meta_path.exists():
+            if png_path.exists() and label_path.exists() and scalar_path.exists():
                 continue
 
             is_call  = option_type == "calls"
             type_str = "call" if is_call else "put"
             snapshot = day_opts[day_opts["type"] == type_str]
 
-            result = _build_surface(snapshot, spot, is_call)
+            result = _build_surface(snapshot, spot, is_call, ticker_idx)
             if result is None:
                 continue
 
             image, label_grid, scalar_grid = result
 
+            # Skip if too few contracts have next-day labels
+            if np.count_nonzero(label_grid) < MIN_NONZERO_CELLS:
+                continue
+
             Image.fromarray(image).save(png_path)
             np.save(label_path,  label_grid)
             np.save(scalar_path, scalar_grid)
-
-            meta = {
-                "ticker":  ticker,
-                "date":    date_str,
-                "is_call": is_call,
-                "spot":    round(spot, 4),
-            }
-            meta_path.write_text(json.dumps(meta, indent=2))
 
     print(f"  [{ticker}] done")
 
@@ -304,8 +314,6 @@ def build(
         start_date: Only process days on or after this date ('YYYY-MM-DD').
         end_date:   Only process days on or before this date ('YYYY-MM-DD').
     """
-    delete_folder()
-
     DATASET_DIR.mkdir(parents=True, exist_ok=True)
 
     if ticker is not None:
@@ -323,4 +331,14 @@ def build(
 
 
 if __name__ == "__main__":
+    import shutil
+
+    if DATASET_DIR.exists():
+        answer = input(f"Delete existing dataset directory '{DATASET_DIR}'? [y/N]: ").strip().lower()
+        if answer == "y":
+            shutil.rmtree(DATASET_DIR)
+            print(f"Deleted {DATASET_DIR}")
+        else:
+            print("Keeping existing files — already-complete days will be skipped.")
+
     build()
