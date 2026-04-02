@@ -23,15 +23,15 @@ Label matrices (.npy, float32):
     Cells with no next-day quote are 0.
 
 Scalar matrices (.npy, float32):
-    Shape: (HEIGHT, WIDTH, 7)
+    Shape: (HEIGHT, WIDTH, 6 + len(TICKERS))  =  (HEIGHT, WIDTH, 110)
     Per-cell input features alongside the image:
-        [..., 0] = spot          (underlying price)
-        [..., 1] = strike        (split-adjusted strike price)
-        [..., 2] = tau           (days to expiry)
-        [..., 3] = log_moneyness (log(strike/spot))
-        [..., 4] = mark          (today's mark price)
-        [..., 5] = is_call       (1.0 for call, 0.0 for put)
-        [..., 6] = ticker_idx    (integer index into TICKERS list)
+        [..., 0]     = spot          (underlying price)
+        [..., 1]     = strike        (split-adjusted strike price)
+        [..., 2]     = tau           (days to expiry)
+        [..., 3]     = log_moneyness (ln(strike/spot))
+        [..., 4]     = mark          (today's mark price)
+        [..., 5]     = is_call       (1.0 for call, 0.0 for put)
+        [..., 6:110] = one-hot ticker encoding (104 elements, one per ticker)
 
 Baseline for comparison:
     Predicting 0.0 (no price change) for every cell.
@@ -162,7 +162,10 @@ def _build_surface(
     oi_grid     = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
     vol_grid    = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
     label_grid  = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
-    scalar_grid = np.zeros((HEIGHT, WIDTH, 7), dtype=np.float32)
+    # Scalar layout: [spot, strike, tau, log_money, mark, is_call, *one_hot_ticker]
+    # Total: 6 + len(TICKERS) = 110 scalars per cell
+    n_scalars   = 6 + len(TICKERS)
+    scalar_grid = np.zeros((HEIGHT, WIDTH, n_scalars), dtype=np.float32)
 
     rows = agg["y_bin"].values
     cols = agg["x_bin"].values
@@ -177,7 +180,8 @@ def _build_surface(
     scalar_grid[rows, cols, 3] = agg["log_money"].values
     scalar_grid[rows, cols, 4] = agg["mark"].values
     scalar_grid[rows, cols, 5] = float(is_call)
-    scalar_grid[rows, cols, 6] = float(ticker_idx)
+    # One-hot encode ticker: positions 6 through 6+len(TICKERS)-1
+    scalar_grid[rows, cols, 6 + ticker_idx] = 1.0
 
     # Normalize image channels and pack into uint8
     r = (_normalize(iv_grid)  * 255).astype(np.uint8)
@@ -341,4 +345,4 @@ if __name__ == "__main__":
         else:
             print("Keeping existing files — already-complete days will be skipped.")
 
-    build()
+    build(ticker="aapl")

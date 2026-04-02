@@ -36,12 +36,10 @@ This produces the following files per ticker per trading day under `dataset/<tic
 |---|---|
 | `<date>_calls.png` | Options surface image for calls (60 × 30 × 3) |
 | `<date>_puts.png` | Options surface image for puts (60 × 30 × 3) |
-| `<date>_calls_labels.npy` | Next-day mark price per grid cell (60 × 30) |
-| `<date>_puts_labels.npy` | Next-day mark price per grid cell (60 × 30) |
-| `<date>_calls_scalars.npy` | Per-cell scalar features (60 × 30 × 4) |
-| `<date>_puts_scalars.npy` | Per-cell scalar features (60 × 30 × 4) |
-| `<date>_calls_meta.json` | Ticker, date, spot price |
-| `<date>_puts_meta.json` | Ticker, date, spot price |
+| `<date>_calls_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
+| `<date>_puts_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
+| `<date>_calls_scalars.npy` | Per-cell scalar features (60 × 30 × 110) |
+| `<date>_puts_scalars.npy` | Per-cell scalar features (60 × 30 × 110) |
 
 **Surface image channels (RGB):**
 - R = implied volatility (normalized)
@@ -50,19 +48,26 @@ This produces the following files per ticker per trading day under `dataset/<tic
 
 **Grid dimensions:**
 - X axis (WIDTH = 30): expiry bins, 1–61 days to expiry
-- Y axis (HEIGHT = 60): log-moneyness bins, log(strike/spot) from -0.5 to +1.5
+- Y axis (HEIGHT = 60): log-moneyness bins, ln(strike/spot) from -1.0 to +1.0
+
+**Stock split adjustment:** Strike prices are adjusted for historical stock splits so that all data is expressed in post-split terms. For each trading date, the strike is multiplied by the product of all split coefficients that occurred after that date. For example, AAPL contracts from before the 4:1 split on August 31, 2020 have their strikes multiplied by 4, and contracts from before the 7:1 split on June 9, 2014 are multiplied by 28 (7 × 4). This ensures log-moneyness is consistent across the full dataset history.
+
+**Days with fewer than 100 non-zero label cells are skipped** as too sparse to provide useful training signal.
 
 ## Model
 
 Each training sample is a single option contract on a single day. The model takes:
 
 - **Surface image** `(3 × 60 × 30)` — the full options surface for that ticker/day, providing global market context
-- **Scalar features** `(4,)` — contract-specific inputs:
+- **Scalar features** `(110,)` — contract-specific inputs:
+  - `spot` — underlying price at snapshot time
+  - `strike` — split-adjusted strike price
   - `tau` — days to expiry
-  - `log_moneyness` — log(strike / spot)
-  - `is_call` — 1.0 for call, 0.0 for put
+  - `log_moneyness` — ln(strike / spot)
   - `mark` — today's bid/ask midpoint price
+  - `is_call` — 1.0 for call, 0.0 for put
+  - `ticker` — one-hot encoded vector of length 104, one element per ticker
 
-**Label:** next-day mark price for that contract
+**Label:** next-day percentage price change — `(mark_t+1 - mark_t) / mark_t`
 
-**Baseline:** predicting `mark_t+1 = mark_t` (prices don't change). The model must achieve a lower MAE than this naive baseline to demonstrate the surface image contains useful predictive information.
+**Baseline:** predicting `0.0` (no price change) for every contract. The model must achieve a lower MAE than this naive baseline to demonstrate the surface image contains useful predictive information.
