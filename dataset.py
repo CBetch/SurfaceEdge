@@ -132,6 +132,11 @@ def _build_surface(
     if df.empty:
         return None
 
+    # Drop any contracts with zero or negative strikes before log
+    df = df[df["strike"] > 0]
+    if df.empty:
+        return None
+
     # Compute log-moneyness: log(strike/spot), centered at 0 = ATM
     df["log_money"] = np.log(df["strike"] / spot)
 
@@ -182,6 +187,11 @@ def _build_surface(
     scalar_grid[rows, cols, 5] = float(is_call)
     # One-hot encode ticker: positions 6 through 6+len(TICKERS)-1
     scalar_grid[rows, cols, 6 + ticker_idx] = 1.0
+
+    # Replace any NaN values before normalizing (NaN IV from bad quotes)
+    iv_grid  = np.nan_to_num(iv_grid,  nan=0.0)
+    oi_grid  = np.nan_to_num(oi_grid,  nan=0.0)
+    vol_grid = np.nan_to_num(vol_grid, nan=0.0)
 
     # Normalize image channels and pack into uint8
     r = (_normalize(iv_grid)  * 255).astype(np.uint8)
@@ -345,4 +355,4 @@ if __name__ == "__main__":
         else:
             print("Keeping existing files — already-complete days will be skipped.")
 
-    build(ticker="aapl")
+    build(ticker="aig")
