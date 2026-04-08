@@ -38,8 +38,8 @@ This produces the following files per ticker per trading day under `dataset/<tic
 | `<date>_puts.png` | Options surface image for puts (60 × 30 × 3) |
 | `<date>_calls_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
 | `<date>_puts_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
-| `<date>_calls_scalars.npy` | Per-cell scalar features (60 × 30 × 110) |
-| `<date>_puts_scalars.npy` | Per-cell scalar features (60 × 30 × 110) |
+| `<date>_calls_scalars.npy` | Per-cell scalar features (60 × 30 × 120) |
+| `<date>_puts_scalars.npy` | Per-cell scalar features (60 × 30 × 120) |
 
 **Surface image channels (RGB):**
 - R = implied volatility (normalized)
@@ -59,15 +59,73 @@ This produces the following files per ticker per trading day under `dataset/<tic
 Each training sample is a single option contract on a single day. The model takes:
 
 - **Surface image** `(3 × 60 × 30)` — the full options surface for that ticker/day, providing global market context
-- **Scalar features** `(110,)` — contract-specific inputs:
-  - `spot` — underlying price at snapshot time
-  - `strike` — split-adjusted strike price
-  - `tau` — days to expiry
-  - `log_moneyness` — ln(strike / spot)
-  - `mark` — today's bid/ask midpoint price
-  - `is_call` — 1.0 for call, 0.0 for put
-  - `ticker` — one-hot encoded vector of length 104, one element per ticker
+- **Scalar vector** `(120,)` — contract-specific inputs:
+
+| Index | Feature | Description |
+|---|---|---|
+| 0 | `spot` | Underlying price at snapshot time |
+| 1 | `strike` | Split-adjusted strike price |
+| 2 | `tau` | Days to expiry |
+| 3 | `log_moneyness` | ln(strike / spot) |
+| 4 | `mark` | Today's bid/ask midpoint price |
+| 5 | `is_call` | 1.0 for call, 0.0 for put |
+| 6 | `delta` | Option delta |
+| 7 | `gamma` | Option gamma |
+| 8 | `vega` | Option vega |
+| 9 | `theta` | Option theta |
+| 10 | `spread` | Normalized bid-ask spread: (ask - bid) / mark |
+| 11 | `dividend_yield` | Annualized dividend yield of the underlying |
+| 12 | `days_to_next_div` | Days until next ex-dividend date, -1 if none |
+| 13 | `momentum_5d` | 5-day underlying return, 0.0 if unavailable |
+| 14 | `momentum_20d` | 20-day underlying return, 0.0 if unavailable |
+| 15 | `implied_vol` | Mean implied volatility for this bin |
+| 16–119 | `ticker_ohe` | One-hot encoded ticker (104 elements) |
+
+**Example scalar vector** (AAPL calls, 2025-01-16, cell (30, 17)):
+
+```
+  [0]  spot             : 227.2491
+  [1]  strike           : 230.0000
+  [2]  tau              : 36.0 days
+  [3]  log_moneyness    : 0.0120
+  [4]  mark             : 7.2500
+  [5]  is_call          : 1
+  [6]  delta            : 0.5011
+  [7]  gamma            : 0.0207
+  [8]  vega             : 0.2860
+  [9]  theta            : -0.1194
+  [10] spread           : 0.0276
+  [11] dividend_yield   : 0.0044
+  [12] days_to_div      : 25
+  [13] momentum_5d      : -0.0595
+  [14] momentum_20d     : -0.0907
+  [15] implied_vol      : 0.2685
+  [16:120] OHE sum      : 1  (should be 1)
+  [16:120] OHE hot idx  : 0  (aapl)
+  label                 : 0.055172  (5.5172%)
+```
+
+This represents a near-ATM call (strike $230.00 vs spot $227.25) expiring in 36 days, priced at $7.25 with an IV of 26.85%. The underlying has been declining over both the 5-day (-5.95%) and 20-day (-9.07%) windows. The next day this contract's mark price increased by 5.52%.
 
 **Label:** next-day percentage price change — `(mark_t+1 - mark_t) / mark_t`
 
 **Baseline:** predicting `0.0` (no price change) for every contract. The model must achieve a lower MAE than this naive baseline to demonstrate the surface image contains useful predictive information.
+
+## Baseline
+
+The naive baseline predicts `0.0` (no price change) for every contract. MAE under this baseline equals the mean absolute value of all labels — the minimum bar SurfaceEdge must beat to demonstrate that surface images contain useful predictive information.
+
+```python
+from baseline import naive_predict_file, naive_evaluate_dataset
+
+# Single file
+mae, n = naive_predict_file(
+    'dataset/aapl/2025-01-16_calls_scalars.npy',
+    'dataset/aapl/2025-01-16_calls_labels.npy',
+    verbose=True,
+)
+
+# Full ticker dataset — calls, puts, or both
+mae, n = naive_evaluate_dataset('dataset/aapl')
+mae, n = naive_evaluate_dataset('dataset/aapl', option_type='calls')
+mae, n = naive_evaluate_dataset('dataset/aapl', option_type='puts')
