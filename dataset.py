@@ -345,4 +345,4 @@ if __name__ == "__main__":
         else:
             print("Keeping existing files — already-complete days will be skipped.")
 
-    build(ticker="aapl")
+    build()
