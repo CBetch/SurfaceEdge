@@ -76,16 +76,28 @@ def run_epoch(model, loader, optimizer, device, train: bool) -> tuple[float, int
     return total_loss / total_n, total_n
 
 
-def naive_mae(loader, device) -> float:
-    """Compute naive baseline MAE (predict 0.0 for every contract)."""
-    total_loss = 0.0
-    total_n    = 0
-    with torch.no_grad():
-        for batch in loader:
-            label = batch[-1].to(device)
-            total_loss += torch.sum(torch.abs(label)).item()
-            total_n    += len(label)
-    return total_loss / total_n if total_n > 0 else 0.0
+def naive_mae(dataset) -> float:
+    """Compute naive baseline MAE directly from the contract index — no file loading."""
+    import numpy as np
+    from pathlib import Path
+
+    total_abs = 0.0
+    total_n   = 0
+
+    # Group samples by npz file to minimize loads
+    from collections import defaultdict
+    file_groups = defaultdict(list)
+    for npz_path_str, y, x, _ in dataset.samples:
+        file_groups[npz_path_str].append((y, x))
+
+    for npz_path_str, coords in file_groups.items():
+        data   = np.load(npz_path_str)
+        labels = data["labels"]
+        for y, x in coords:
+            total_abs += abs(float(labels[y, x]))
+            total_n   += 1
+
+    return total_abs / total_n if total_n > 0 else 0.0
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -135,7 +147,7 @@ def main():
 
     # ── Naive baseline ────────────────────────────────────────────────────────
     print("\nComputing naive baseline MAE on test set ...")
-    naive = naive_mae(test_loader, device)
+    naive = naive_mae(test_ds)
     print(f"  Naive MAE (test) : {naive:.6f}")
 
     # ── Training loop ─────────────────────────────────────────────────────────
