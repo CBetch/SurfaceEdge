@@ -36,10 +36,10 @@ This produces the following files per ticker per trading day under `dataset/<tic
 |---|---|
 | `<date>_calls.png` | Options surface image for calls (60 × 30 × 3) |
 | `<date>_puts.png` | Options surface image for puts (60 × 30 × 3) |
-| `<date>_calls_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
-| `<date>_puts_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
-| `<date>_calls_scalars.npy` | Per-cell scalar features (60 × 30 × 120) |
-| `<date>_puts_scalars.npy` | Per-cell scalar features (60 × 30 × 120) |
+| `<date>_calls.npz` | Compressed archive: `labels` (60 × 30 float32), `scalars` (60 × 30 × 16 float16) |
+| `<date>_puts.npz` | Compressed archive: `labels` (60 × 30 float32), `scalars` (60 × 30 × 16 float16) |
+
+The OHE ticker vector is **not stored on disk** — it is reconstructed at load time from the filename using `TICKER_IDX` from `dataset.py`. Use `load_surface()` from `compress.py` to load files with the full 120-dim scalar vector automatically reconstructed.
 
 **Surface image channels (RGB):**
 - R = implied volatility (normalized)
@@ -110,6 +110,19 @@ This represents a near-ATM call (strike $230.00 vs spot $227.25) expiring in 36 
 **Label:** next-day percentage price change — `(mark_t+1 - mark_t) / mark_t`
 
 **Baseline:** predicting `0.0` (no price change) for every contract. The model must achieve a lower MAE than this naive baseline to demonstrate the surface image contains useful predictive information.
+
+## Loading Compressed Scalars
+
+Scalar files are stored as compressed `.npz` with float16 precision and without the OHE ticker block to reduce disk size. Use `expand_scalar.py` to reconstruct the full 120-dim float32 scalar array identical to the pre-compression format:
+
+```python
+from expand_scalar import load_scalars
+
+scalars = load_scalars('dataset/aapl/2025-01-16_calls.npz')
+# scalars.shape -> (60, 30, 120), dtype float32
+```
+
+The ticker OHE is reconstructed automatically from the folder name — no extra arguments needed.
 
 ## Baseline
 

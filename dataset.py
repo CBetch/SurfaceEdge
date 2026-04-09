@@ -5,11 +5,9 @@ Builds the processed dataset from raw parquet files.
 
 For each ticker and each trading day, produces:
     dataset/<ticker>/<date>_calls.png
-    dataset/<ticker>/<date>_calls_labels.npy
-    dataset/<ticker>/<date>_calls_scalars.npy
+    dataset/<ticker>/<date>_calls.npz   (keys: labels, scalars)
     dataset/<ticker>/<date>_puts.png
-    dataset/<ticker>/<date>_puts_labels.npy
-    dataset/<ticker>/<date>_puts_scalars.npy
+    dataset/<ticker>/<date>_puts.npz    (keys: labels, scalars)
 
 PNG channels (uint8, 0-255):
     R = implied_volatility          (normalized)
@@ -22,26 +20,26 @@ Label matrices (.npy, float32):
     label = (mark_t+1 - mark_t) / mark_t
     Cells with no next-day quote are 0.
 
-Scalar matrices (.npy, float32):
-    Shape: (HEIGHT, WIDTH, 15 + len(TICKERS))  =  (HEIGHT, WIDTH, 119)
-    Per-cell input features alongside the image:
-        [..., 0]      = spot             (underlying price)
-        [..., 1]      = strike           (split-adjusted strike price)
-        [..., 2]      = tau              (days to expiry)
-        [..., 3]      = log_moneyness    (ln(strike/spot))
-        [..., 4]      = mark             (today's mark price)
-        [..., 5]      = is_call          (1.0 for call, 0.0 for put)
-        [..., 6]      = delta
-        [..., 7]      = gamma
-        [..., 8]      = vega
-        [..., 9]      = theta
-        [..., 10]     = spread           (normalized bid-ask spread: (ask-bid)/mark)
-        [..., 11]     = dividend_yield   (annualized dividend yield)
-        [..., 12]     = days_to_div      (days to next dividend, -1 if none)
-        [..., 13]     = momentum_5d      (5-day underlying return, 0 if unavailable)
-        [..., 14]     = momentum_20d     (20-day underlying return, 0 if unavailable)
-        [..., 15]     = implied_volatility (mean IV for this bin)
-        [..., 16:120] = one-hot ticker encoding (104 elements, one per ticker)
+Scalar matrices (.npz, float16):
+    Stored in compressed .npz alongside label_grid.
+    Shape: (HEIGHT, WIDTH, 16)  — OHE ticker excluded (derived from filename at load time)
+    Per-cell input features:
+        [..., 0]  = spot             (underlying price)
+        [..., 1]  = strike           (split-adjusted strike price)
+        [..., 2]  = tau              (days to expiry)
+        [..., 3]  = log_moneyness    (ln(strike/spot))
+        [..., 4]  = mark             (today mark price)
+        [..., 5]  = is_call          (1.0 for call, 0.0 for put)
+        [..., 6]  = delta
+        [..., 7]  = gamma
+        [..., 8]  = vega
+        [..., 9]  = theta
+        [..., 10] = spread           (normalized bid-ask spread: (ask-bid)/mark)
+        [..., 11] = dividend_yield   (annualized dividend yield)
+        [..., 12] = days_to_div      (days to next dividend, -1 if none)
+        [..., 13] = momentum_5d      (5-day underlying return, 0 if unavailable)
+        [..., 14] = momentum_20d     (20-day underlying return, 0 if unavailable)
+        [..., 15] = implied_volatility (mean IV for this bin)
 
 Baseline for comparison:
     Predicting 0.0 (no price change) for every cell.
@@ -81,7 +79,7 @@ TAU_BINS = np.linspace(TAU_MIN, TAU_MAX, WIDTH + 1)
 # Minimum number of non-zero label cells required to save a surface
 MIN_NONZERO_CELLS = 100
 
-# Number of non-OHE scalars
+# Number of scalars stored on disk (OHE excluded — derived from filename at load time)
 N_BASE_SCALARS = 16
 
 TICKERS = [
@@ -227,8 +225,8 @@ def _build_surface(
     oi_grid     = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
     vol_grid    = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
     label_grid  = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
-    n_scalars   = N_BASE_SCALARS + len(TICKERS)
-    scalar_grid = np.zeros((HEIGHT, WIDTH, n_scalars),             dtype=np.float32)
+    n_scalars   = N_BASE_SCALARS  # OHE excluded from disk storage
+    scalar_grid = np.zeros((HEIGHT, WIDTH, n_scalars),             dtype=np.float16)
 
     rows = agg["y_bin"].values
     cols = agg["x_bin"].values
@@ -254,7 +252,7 @@ def _build_surface(
     scalar_grid[rows, cols, 13] = float(momentum_5d)
     scalar_grid[rows, cols, 14] = float(momentum_20d)
     scalar_grid[rows, cols, 15] = np.nan_to_num(agg["iv"].values, nan=0.0)
-    scalar_grid[rows, cols, N_BASE_SCALARS + ticker_idx] = 1.0
+    # OHE ticker encoding is NOT stored — derived from filename at load time
 
     iv_grid  = np.nan_to_num(iv_grid,  nan=0.0)
     oi_grid  = np.nan_to_num(oi_grid,  nan=0.0)
@@ -348,11 +346,10 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
             continue
 
         for option_type in ("calls", "puts"):
-            png_path    = out_dir / f"{date_str}_{option_type}.png"
-            label_path  = out_dir / f"{date_str}_{option_type}_labels.npy"
-            scalar_path = out_dir / f"{date_str}_{option_type}_scalars.npy"
+            png_path = out_dir / f"{date_str}_{option_type}.png"
+            npz_path = out_dir / f"{date_str}_{option_type}.npz"
 
-            if png_path.exists() and label_path.exists() and scalar_path.exists():
+            if png_path.exists() and npz_path.exists():
                 continue
 
             is_call  = option_type == "calls"
@@ -373,8 +370,7 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
                 continue
 
             Image.fromarray(image).save(png_path)
-            np.save(label_path,  label_grid)
-            np.save(scalar_path, scalar_grid)
+            np.savez_compressed(npz_path, labels=label_grid, scalars=scalar_grid)
 
     print(f"  [{ticker}] done")
 
@@ -422,4 +418,4 @@ if __name__ == "__main__":
         else:
             print("Keeping existing files — already-complete days will be skipped.")
 
-    build(ticker="msft")
+    build(ticker="aapl")
