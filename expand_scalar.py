@@ -17,7 +17,7 @@ Usage:
 
 import numpy as np
 from pathlib import Path
-from dataset import TICKER_IDX
+from build_dataset import TICKER_IDX
 
 N_TICKERS      = 104
 N_BASE_SCALARS = 16

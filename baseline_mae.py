@@ -13,8 +13,7 @@ Usage:
 
     # Single file
     mae, n = naive_predict_file(
-        'dataset/aapl/2025-01-16_calls_scalars.npy',
-        'dataset/aapl/2025-01-16_calls_labels.npy',
+        'dataset/aapl/2025-01-16_calls.npz',
     )
 
     # Full dataset folder

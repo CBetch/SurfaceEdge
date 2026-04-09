@@ -1,0 +1,87 @@
+import torch
+import torch.nn.functional as F
+
+class SurfaceEdgeModel(torch.nn.Module):
+    def __init__(self,
+                 image_channels=3,        # input image channels (R=IV, G=OI, B=Vol)
+                 img_dim=238,             # projected image feature dimension
+                 num_tickers=104,         # number of tickers in the embedding
+                 ticker_dim=128,          # ticker embedding dimension
+                 dropout=0.2,
+                 hidden_dim=64,
+                 out_dim=1):             # single scalar output: predicted % change
+        super().__init__()
+
+        ## IMAGE PROCESSING ## 
+        self.conv1 = torch.nn.Conv2d(in_channels=image_channels, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.pool3 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # Adaptive pooling ensures the output is always 1x1 spatially, 
+        # making the network agnostic to exact input image size.
+        self.global_pool = torch.nn.AdaptiveAvgPool2d((1, 1))
+        
+        # --- Image Feature Projection
+        self.fc_image = torch.nn.Linear(128, img_dim) 
+
+        ## TICKER PROCESSING ##
+        self.ticker_embedding = torch.nn.Embedding(num_tickers, ticker_dim) 
+
+        ## COMBINED PROCESSING ## 
+        count_in_features = img_dim + ticker_dim + 1 + 1 + 1 + 1 
+        self.layer1 = torch.nn.Linear(count_in_features, hidden_dim)
+        self.dropout = torch.nn.Dropout(dropout)
+        self.norm = torch.nn.LayerNorm(hidden_dim)
+        self.out = torch.nn.Linear(hidden_dim, out_dim)
+
+    def forward(self, 
+        image, 
+        tau,
+        log_moneyness,
+        is_call,
+        mark,
+        ticker # Expects an INTEGER index (0 to num_tickers-1), NOT 1-hot!
+    ): 
+        ## IMAGE PROCESSING ## 
+        x_image = F.relu(self.conv1(image))
+        x_image = self.pool1(x_image)
+        x_image = F.relu(self.conv2(x_image))
+        x_image = self.pool2(x_image)
+        x_image = F.relu(self.conv3(x_image))
+        x_image = self.pool3(x_image)
+        
+        # Global Average Pooling to reduce spatial dimensions to 1x1
+        x_image = self.global_pool(x_image) # Shape: [Batch, 128, 1, 1]
+        
+        # Flatten for the linear layer
+        x_image = torch.flatten(x_image, 1) # Shape: [Batch, 128]
+        
+        # Project to img_dim 
+        x_image = F.relu(self.fc_image(x_image)) # Shape: [Batch, img_dim]
+
+        ## TICKER PROCESSING ## 
+        x_ticker = self.ticker_embedding(ticker) # Shape: [Batch, ticker_dim]
+
+        ## SCALAR PROCESSING ##
+        # Ensure all individual numbers have the shape [Batch, 1] for concatenation
+        tau = tau.view(-1, 1)
+        log_moneyness = log_moneyness.view(-1, 1)
+        is_call = is_call.view(-1, 1).float() # ensure boolean is a float!
+        mark = mark.view(-1, 1)
+
+        ## CONCATENATION ##
+        features = torch.cat((x_image, x_ticker, tau, log_moneyness, is_call, mark), dim=1)
+
+        ## FINAL MLP ##
+        out_1 = self.layer1(features)
+        out_1 = self.norm(out_1)
+        out_1 = F.relu(out_1)
+        out_1 = self.dropout(out_1)
+        
+
+        out_2 = self.out(out_1)
+
+        return out_2
