@@ -15,13 +15,19 @@ Usage:
     # Or run directly:
     python filter_dataset.py
 
-Example:
-From aapl (0.5 spread retains 90.8% of contracts, while producing a 13.6% MAE):
-Unfiltered : 484,011 MAE=0.359672
+EX on Apple:
+=== AAPL Filter Results ===
+Before : 484,011 contracts
+  MAE    : 0.359672
+  Std dev: 3.319277
+  Median : 0.073132
 
-spread <= 0.5 : 439,593 (90.8%) MAE=0.136049 std=0.235743
-spread <= 1.0 : 462,345 (95.5%) MAE=0.151492 std=0.261672
-spread <= 2.0 : 472,507 (97.6%) MAE=0.159730 std=0.274636
+After  : 439,593 contracts (90.8% retained)
+  MAE    : 0.136049
+  Std dev: 0.235743
+  Median : 0.060713
+
+Days dropped (originally sparse): 0
 """
 
 import numpy as np
@@ -50,6 +56,8 @@ def filter_ticker(ticker_src: Path, ticker_dst: Path) -> tuple[list, list, int]:
         scalars = data['scalars']
 
         ys, xs = np.where(labels != 0)
+        original_count = len(ys)
+
         for y, x in zip(ys, xs):
             label  = float(labels[y, x])
             spread = float(scalars[y, x, 10])
@@ -57,8 +65,8 @@ def filter_ticker(ticker_src: Path, ticker_dst: Path) -> tuple[list, list, int]:
             if abs(label) > MAX_LABEL or spread > MAX_SPREAD:
                 labels[y, x] = 0.0
 
-        remaining = np.count_nonzero(labels)
-        if remaining < MIN_NONZERO:
+        # Only drop the day if it was already sparse before filtering
+        if original_count < MIN_NONZERO:
             files_deleted += 1
             continue
 

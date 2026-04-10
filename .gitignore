@@ -3,6 +3,7 @@ data/**/*.parquet
 
 # datasets
 dataset/
+dataset_filtered/
 
 # Python
 __pycache__/
