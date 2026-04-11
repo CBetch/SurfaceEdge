@@ -23,15 +23,25 @@ Label matrices (.npy, float32):
     Cells with no next-day quote are 0.
 
 Scalar matrices (.npy, float32):
-    Shape: (HEIGHT, WIDTH, 6 + len(TICKERS))  =  (HEIGHT, WIDTH, 110)
+    Shape: (HEIGHT, WIDTH, 15 + len(TICKERS))  =  (HEIGHT, WIDTH, 119)
     Per-cell input features alongside the image:
-        [..., 0]     = spot          (underlying price)
-        [..., 1]     = strike        (split-adjusted strike price)
-        [..., 2]     = tau           (days to expiry)
-        [..., 3]     = log_moneyness (ln(strike/spot))
-        [..., 4]     = mark          (today's mark price)
-        [..., 5]     = is_call       (1.0 for call, 0.0 for put)
-        [..., 6:110] = one-hot ticker encoding (104 elements, one per ticker)
+        [..., 0]      = spot             (underlying price)
+        [..., 1]      = strike           (split-adjusted strike price)
+        [..., 2]      = tau              (days to expiry)
+        [..., 3]      = log_moneyness    (ln(strike/spot))
+        [..., 4]      = mark             (today's mark price)
+        [..., 5]      = is_call          (1.0 for call, 0.0 for put)
+        [..., 6]      = delta
+        [..., 7]      = gamma
+        [..., 8]      = vega
+        [..., 9]      = theta
+        [..., 10]     = spread           (normalized bid-ask spread: (ask-bid)/mark)
+        [..., 11]     = dividend_yield   (annualized dividend yield)
+        [..., 12]     = days_to_div      (days to next dividend, -1 if none)
+        [..., 13]     = momentum_5d      (5-day underlying return, 0 if unavailable)
+        [..., 14]     = momentum_20d     (20-day underlying return, 0 if unavailable)
+        [..., 15]     = implied_volatility (mean IV for this bin)
+        [..., 16:120] = one-hot ticker encoding (104 elements, one per ticker)
 
 Baseline for comparison:
     Predicting 0.0 (no price change) for every cell.
@@ -69,8 +79,10 @@ TAU_MAX  = 61
 TAU_BINS = np.linspace(TAU_MIN, TAU_MAX, WIDTH + 1)
 
 # Minimum number of non-zero label cells required to save a surface
-# Days below this threshold are skipped as too sparse to be useful
 MIN_NONZERO_CELLS = 100
+
+# Number of non-OHE scalars
+N_BASE_SCALARS = 16
 
 TICKERS = [
     "aapl", "abbv", "abt",   "acn",   "adbe", "aig",  "amd",  "amgn", "amt",  "amzn",
@@ -86,7 +98,6 @@ TICKERS = [
     "vz",   "wfc",  "wmt",   "xom",
 ]
 
-# Integer index lookup for ticker encoding in scalars
 TICKER_IDX = {t: i for i, t in enumerate(TICKERS)}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,43 +110,94 @@ def _normalize(arr: np.ndarray) -> np.ndarray:
     return (arr - lo) / (hi - lo)
 
 
+def _build_underlying_features(und: pd.DataFrame, date: pd.Timestamp) -> dict:
+    """
+    Compute underlying-level features for a given date from the underlying DataFrame.
+    Returns a dict with: spot, dividend_yield, days_to_div, momentum_5d, momentum_20d.
+    """
+    past = und[und["date"] <= date].sort_values("date")
+    if past.empty:
+        return {"spot": 0.0, "dividend_yield": 0.0, "days_to_div": -1,
+                "momentum_5d": 0.0, "momentum_20d": 0.0}
+
+    spot = float(past.iloc[-1]["adjusted_close"])
+
+    # Dividend yield — annualize using most recent non-zero dividend
+    divs = past[past["dividend_amount"] > 0]
+    if not divs.empty:
+        last_div = float(divs.iloc[-1]["dividend_amount"])
+        # Estimate payments per year from spacing of dividends
+        if len(divs) >= 2:
+            gaps = divs["date"].diff().dropna().dt.days
+            avg_gap = float(gaps.mean())
+            payments_per_year = 365.0 / avg_gap if avg_gap > 0 else 4.0
+        else:
+            payments_per_year = 4.0  # assume quarterly
+        div_yield = (last_div * payments_per_year) / spot if spot > 0 else 0.0
+    else:
+        div_yield = 0.0
+
+    # Days to next dividend
+    future_divs = und[(und["date"] > date) & (und["dividend_amount"] > 0)].sort_values("date")
+    if not future_divs.empty:
+        days_to_div = (future_divs.iloc[0]["date"] - date).days
+    else:
+        days_to_div = -1
+
+    # Momentum — 5 and 20 day returns
+    def _momentum(n):
+        if len(past) > n:
+            prev = float(past.iloc[-(n+1)]["adjusted_close"])
+            return (spot - prev) / prev if prev > 0 else 0.0
+        return 0.0
+
+    return {
+        "spot":           spot,
+        "dividend_yield": float(div_yield),
+        "days_to_div":    int(days_to_div),
+        "momentum_5d":    _momentum(5),
+        "momentum_20d":   _momentum(20),
+    }
+
+
 def _build_surface(
     snapshot: pd.DataFrame,
     spot: float,
     is_call: bool,
     ticker_idx: int,
+    div_yield: float,
+    days_to_div: int,
+    momentum_5d: float,
+    momentum_20d: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """
     Convert a single-day, single-type options snapshot into fixed-size grids.
 
-    snapshot must contain:
-        - 'label' column: percentage price change (mark_t+1 - mark_t) / mark_t
-        - 'mark'  column: today's mark price
-        - 'strike' column: split-adjusted strike price
-
     Returns:
-        image:         (HEIGHT, WIDTH, 3) uint8
-        label_grid:    (HEIGHT, WIDTH)    float32 — next-day % price change
-        scalar_grid:   (HEIGHT, WIDTH, 7) float32 — [spot, strike, tau,
-                                                      log_money, mark,
-                                                      is_call, ticker_idx]
-
-    Returns None if the snapshot is empty or has insufficient data.
+        image:         (HEIGHT, WIDTH, 3)                uint8
+        label_grid:    (HEIGHT, WIDTH)                   float32
+        scalar_grid:   (HEIGHT, WIDTH, N_BASE_SCALARS + len(TICKERS)) float32
     """
     df = snapshot.copy()
     df["date"]       = pd.to_datetime(df["date"])
     df["expiration"] = pd.to_datetime(df["expiration"])
     df["tau"]        = (df["expiration"] - df["date"]).dt.days
 
-    # Filter to valid expiry window
     df = df[(df["tau"] >= TAU_MIN) & (df["tau"] <= TAU_MAX)]
     if df.empty:
         return None
 
-    # Compute log-moneyness: log(strike/spot), centered at 0 = ATM
-    df["log_money"] = np.log(df["strike"] / spot)
+    df = df[df["strike"] > 0]
+    if df.empty:
+        return None
 
-    # Assign each row to a fixed global bin (options outside range are dropped)
+    df["log_money"] = np.log(df["strike"] / spot)
+    df["spread"]    = np.where(
+        df["mark"] > 0,
+        (df["ask"] - df["bid"]) / df["mark"],
+        0.0
+    )
+
     df["x_bin"] = pd.cut(df["tau"],       bins=TAU_BINS,       labels=False, include_lowest=True)
     df["y_bin"] = pd.cut(df["log_money"], bins=MONEYNESS_BINS, labels=False, include_lowest=True)
     df = df.dropna(subset=["x_bin", "y_bin"])
@@ -145,7 +207,6 @@ def _build_surface(
     if df.empty:
         return None
 
-    # Aggregate per pixel
     agg = df.groupby(["y_bin", "x_bin"], observed=True).agg(
         iv        = ("implied_volatility", "mean"),
         oi        = ("open_interest",      "sum"),
@@ -155,39 +216,54 @@ def _build_surface(
         strike    = ("strike",             "mean"),
         tau       = ("tau",                "mean"),
         log_money = ("log_money",          "mean"),
+        delta     = ("delta",              "mean"),
+        gamma     = ("gamma",              "mean"),
+        vega      = ("vega",               "mean"),
+        theta     = ("theta",              "mean"),
+        spread    = ("spread",             "mean"),
     ).reset_index()
 
-    # Build grids
-    iv_grid     = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
-    oi_grid     = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
-    vol_grid    = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
-    label_grid  = np.zeros((HEIGHT, WIDTH),    dtype=np.float32)
-    # Scalar layout: [spot, strike, tau, log_money, mark, is_call, *one_hot_ticker]
-    # Total: 6 + len(TICKERS) = 110 scalars per cell
-    n_scalars   = 6 + len(TICKERS)
-    scalar_grid = np.zeros((HEIGHT, WIDTH, n_scalars), dtype=np.float32)
+    iv_grid     = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
+    oi_grid     = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
+    vol_grid    = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
+    label_grid  = np.zeros((HEIGHT, WIDTH),                        dtype=np.float32)
+    n_scalars   = N_BASE_SCALARS + len(TICKERS)
+    scalar_grid = np.zeros((HEIGHT, WIDTH, n_scalars),             dtype=np.float32)
 
     rows = agg["y_bin"].values
     cols = agg["x_bin"].values
 
-    iv_grid[rows, cols]        = agg["iv"].values
-    oi_grid[rows, cols]        = np.log1p(agg["oi"].values)
-    vol_grid[rows, cols]       = np.log1p(agg["vol"].values)
-    label_grid[rows, cols]     = agg["label"].values
-    scalar_grid[rows, cols, 0] = float(spot)
-    scalar_grid[rows, cols, 1] = agg["strike"].values
-    scalar_grid[rows, cols, 2] = agg["tau"].values
-    scalar_grid[rows, cols, 3] = agg["log_money"].values
-    scalar_grid[rows, cols, 4] = agg["mark"].values
-    scalar_grid[rows, cols, 5] = float(is_call)
-    # One-hot encode ticker: positions 6 through 6+len(TICKERS)-1
-    scalar_grid[rows, cols, 6 + ticker_idx] = 1.0
+    iv_grid[rows, cols]         = agg["iv"].values
+    oi_grid[rows, cols]         = np.log1p(agg["oi"].values)
+    vol_grid[rows, cols]        = np.log1p(agg["vol"].values)
+    label_grid[rows, cols]      = agg["label"].values
 
-    # Normalize image channels and pack into uint8
+    scalar_grid[rows, cols,  0] = float(spot)
+    scalar_grid[rows, cols,  1] = agg["strike"].values
+    scalar_grid[rows, cols,  2] = agg["tau"].values
+    scalar_grid[rows, cols,  3] = agg["log_money"].values
+    scalar_grid[rows, cols,  4] = agg["mark"].values
+    scalar_grid[rows, cols,  5] = float(is_call)
+    scalar_grid[rows, cols,  6] = np.nan_to_num(agg["delta"].values,  nan=0.0)
+    scalar_grid[rows, cols,  7] = np.nan_to_num(agg["gamma"].values,  nan=0.0)
+    scalar_grid[rows, cols,  8] = np.nan_to_num(agg["vega"].values,   nan=0.0)
+    scalar_grid[rows, cols,  9] = np.nan_to_num(agg["theta"].values,  nan=0.0)
+    scalar_grid[rows, cols, 10] = np.nan_to_num(agg["spread"].values, nan=0.0)
+    scalar_grid[rows, cols, 11] = float(div_yield)
+    scalar_grid[rows, cols, 12] = float(days_to_div)
+    scalar_grid[rows, cols, 13] = float(momentum_5d)
+    scalar_grid[rows, cols, 14] = float(momentum_20d)
+    scalar_grid[rows, cols, 15] = np.nan_to_num(agg["iv"].values, nan=0.0)
+    scalar_grid[rows, cols, N_BASE_SCALARS + ticker_idx] = 1.0
+
+    iv_grid  = np.nan_to_num(iv_grid,  nan=0.0)
+    oi_grid  = np.nan_to_num(oi_grid,  nan=0.0)
+    vol_grid = np.nan_to_num(vol_grid, nan=0.0)
+
     r = (_normalize(iv_grid)  * 255).astype(np.uint8)
     g = (_normalize(oi_grid)  * 255).astype(np.uint8)
     b = (_normalize(vol_grid) * 255).astype(np.uint8)
-    image = np.stack([r, g, b], axis=-1)  # (HEIGHT, WIDTH, 3)
+    image = np.stack([r, g, b], axis=-1)
 
     return image, label_grid, scalar_grid
 
@@ -212,10 +288,9 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
     opts["date"]       = pd.to_datetime(opts["date"])
     opts["expiration"] = pd.to_datetime(opts["expiration"])
     und["date"]        = pd.to_datetime(und["date"])
+    und                = und.sort_values("date").reset_index(drop=True)
 
-    # Build cumulative split adjustment: for each date, multiply by all
-    # split coefficients that occurred AFTER that date to convert strikes
-    # to post-split terms, making all historical data comparable
+    # Split adjustment
     splits = und[und["split_coefficient"] != 1.0][["date", "split_coefficient"]].copy()
     splits["split_coefficient"] = splits["split_coefficient"].round()
     splits = splits.sort_values("date")
@@ -228,7 +303,7 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
 
     opts["strike"] = opts["strike"] * opts["date"].map(adjustment_map)
 
-    # Compute next-day percentage price change label
+    # Next-day label
     print(f"  [{ticker}] computing next-day labels ...")
     mark_lookup = opts[["contract_id", "date", "mark"]].copy()
     mark_lookup = mark_lookup.rename(columns={"mark": "next_mark", "date": "next_date"})
@@ -244,8 +319,6 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
         how="left",
     )
 
-    # Percentage change: (mark_t+1 - mark_t) / mark_t
-    # Drop rows where mark is zero or next_mark is unavailable
     opts = opts[opts["next_mark"].notna() & (opts["mark"] > 0)].copy()
     opts["label"] = (opts["next_mark"] - opts["mark"]) / opts["mark"]
 
@@ -267,11 +340,12 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
     for date in tqdm(dates, desc=f"  [{ticker}]", unit="day"):
         date_str = pd.Timestamp(date).strftime("%Y-%m-%d")
         day_opts = opts[opts["date"] == date]
-        spot_row = und[und["date"] == date]
 
-        if spot_row.empty:
+        # Compute underlying features once per day
+        uf = _build_underlying_features(und, pd.Timestamp(date))
+        spot = uf["spot"]
+        if spot <= 0:
             continue
-        spot = float(spot_row["adjusted_close"].iloc[0])
 
         for option_type in ("calls", "puts"):
             png_path    = out_dir / f"{date_str}_{option_type}.png"
@@ -285,13 +359,16 @@ def _process_ticker(ticker: str, start_date: str | None = None, end_date: str | 
             type_str = "call" if is_call else "put"
             snapshot = day_opts[day_opts["type"] == type_str]
 
-            result = _build_surface(snapshot, spot, is_call, ticker_idx)
+            result = _build_surface(
+                snapshot, spot, is_call, ticker_idx,
+                uf["dividend_yield"], uf["days_to_div"],
+                uf["momentum_5d"],    uf["momentum_20d"],
+            )
             if result is None:
                 continue
 
             image, label_grid, scalar_grid = result
 
-            # Skip if too few contracts have next-day labels
             if np.count_nonzero(label_grid) < MIN_NONZERO_CELLS:
                 continue
 
@@ -345,4 +422,4 @@ if __name__ == "__main__":
         else:
             print("Keeping existing files — already-complete days will be skipped.")
 
-    build(ticker="aapl")
+    build(ticker="msft")
