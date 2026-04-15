@@ -1,0 +1,236 @@
+from tqdm import tqdm
+Troyb@TroyDesktop MINGW64 ~/cygwin/Troyb/repos/SurfaceEdge (troy_dev)
+$ python3 ./Main/main.py
+Traceback (most recent call last):
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 14, in <module>
+    from ClassDefinition.Dataset import Dataset , FastDataset
+  File "C:\Users/Troyb/cygwin/Troyb/repos/SurfaceEdge\ClassDefinition\Dataset.py", line 87, in <module>
+    class FastDataset(Dataset):
+  File "C:\Users/Troyb/cygwin/Troyb/repos/SurfaceEdge\ClassDefinition\Dataset.py", line 93, in FastDataset
+    @lru_cache(maxsize=64)
+     ^^^^^^^^^
+NameError: name 'lru_cache' is not defined
+
+Troyb@TroyDesktop MINGW64 ~/cygwin/Troyb/repos/SurfaceEdge (troy_dev)
+$ python3 ./Main/main.py
+Device: cuda
+Loading dataset...
+Found 10124 daily options chain grids. Indexing valid contracts...
+Total individual training samples (contracts) indexed: 1,730,352
+Filtering dataset for MSFT and extracting dates...
+Found 608,733 MSFT samples out of 1,730,352 total.
+Total Unique MSFT Days: 2305 (Train: 1844, Val: 461)
+Training samples: 453,629 | Validation samples: 155,104
+
+Epoch 1/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:50<00:00,  7.69it/s, MAE=0.3314, Base_MAE=0.3340]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:48<00:00, 12.53it/s]
+Train MAE: 0.5078 (Baseline: 0.5245)
+Val MAE:   0.5688 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0148
+
+Epoch 2/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:47<00:00,  7.77it/s, MAE=0.6306, Base_MAE=0.6361]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:47<00:00, 12.70it/s]
+Train MAE: 0.4982 (Baseline: 0.5245)
+Val MAE:   0.5638 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0198
+
+Epoch 3/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:48<00:00,  7.74it/s, MAE=0.4850, Base_MAE=0.4804]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:47<00:00, 12.82it/s]
+Train MAE: 0.4924 (Baseline: 0.5245)
+Val MAE:   0.5593 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0242
+
+Epoch 4/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:50<00:00,  7.69it/s, MAE=0.2654, Base_MAE=0.2756]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:49<00:00, 12.30it/s]
+Train MAE: 0.4820 (Baseline: 0.5245)
+Val MAE:   0.5811 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0025
+
+Epoch 5/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [04:05<00:00,  7.22it/s, MAE=0.6484, Base_MAE=0.7194]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:49<00:00, 12.26it/s]
+Train MAE: 0.4565 (Baseline: 0.5245)
+Val MAE:   0.5732 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0104
+
+Epoch 6/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [04:10<00:00,  7.07it/s, MAE=0.2782, Base_MAE=0.3621]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:49<00:00, 12.31it/s]
+Train MAE: 0.4307 (Baseline: 0.5245)
+Val MAE:   0.5730 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0106
+
+Epoch 7/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:51<00:00,  7.67it/s, MAE=0.4707, Base_MAE=0.5863]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:47<00:00, 12.67it/s]
+Train MAE: 0.4145 (Baseline: 0.5245)
+Val MAE:   0.5845 (Baseline: 0.5836)
+
+Epoch 8/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:57<00:00,  7.47it/s, MAE=0.3514, Base_MAE=0.4425]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:47<00:00, 12.71it/s]
+Train MAE: 0.4073 (Baseline: 0.5245)
+Val MAE:   0.5850 (Baseline: 0.5836)
+
+Epoch 9/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:49<00:00,  7.71it/s, MAE=0.2045, Base_MAE=0.2366]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:47<00:00, 12.79it/s]
+Train MAE: 0.4027 (Baseline: 0.5245)
+Val MAE:   0.5830 (Baseline: 0.5836)
+[*] Checkpoint saved! Model is beating the baseline by 0.0005
+
+Epoch 10/15
+Training: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1772/1772 [03:49<00:00,  7.73it/s, MAE=0.2682, Base_MAE=0.5124]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 606/606 [00:47<00:00, 12.83it/s]
+Train MAE: 0.4014 (Baseline: 0.5245)
+Val MAE:   0.6006 (Baseline: 0.5836)
+
+Epoch 11/15
+Training:   0%|                                                                                                                                                                                    | 0/1772 [00:04<?, ?it/s]
+Traceback (most recent call last):
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 152, in <module>
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 149, in main
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 32, in train_model
+    for batch in train_bar:
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\tqdm\std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\utils\data\dataloader.py", line 500, in __iter__
+    return self._get_iterator()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\utils\data\dataloader.py", line 433, in _get_iterator
+    return _MultiProcessingDataLoaderIter(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\utils\data\dataloader.py", line 1192, in __init__
+    w.start()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\process.py", line 121, in start
+    self._popen = self._Popen(self)
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\spawn.py", line 132, in _main
+                  ^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\context.py", line 224, in _Popen
+    self = reduction.pickle.load(from_parent)
+    return _default_context.get_context().Process._Popen(process_obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+EOFError: Ran out of input
+
+During handling of the above exception, another exception occurred:
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\context.py", line 336, in _Popen
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+    return Popen(process_obj)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\spawn.py", line 134, in _main
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\popen_spawn_win32.py", line 95, in __init__
+    del process.current_process()._inheriting
+    reduction.dump(process_obj, to_child)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\process.py", line 37, in current_process
+    def current_process():
+
+KeyboardInterrupt
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\multiprocessing\reduction.py", line 60, in dump
+    ForkingPickler(file, protocol).dump(obj)
+KeyboardInterrupt
+
+
+Troyb@TroyDesktop MINGW64 ~/cygwin/Troyb/repos/SurfaceEdge (troy_dev)
+$ python3 ./Main/main.py
+Device: cuda
+Loading MSFT dataset into RAM...
+Traceback (most recent call last):
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 115, in <module>
+    main()
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 92, in main
+    full_dataset = InMemoryDataset(path=os.path.join(SEROOT, 'dataset'), target_ticker='msft')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users/Troyb/cygwin/Troyb/repos/SurfaceEdge\ClassDefinition\Dataset.py", line 25, in __init__
+    for label_file in tqdm(label_files, desc="Parsing Days"):
+                      ^^^^
+NameError: name 'tqdm' is not defined
+
+Troyb@TroyDesktop MINGW64 ~/cygwin/Troyb/repos/SurfaceEdge (troy_dev)
+$ python3 ./Main/main.py
+Device: cuda
+Loading MSFT dataset into RAM...
+Parsing Days: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3980/3980 [00:36<00:00, 109.26it/s]
+Total Unique Days: 2305 (Train: 1844, Val: 461)
+Training samples: 453,629 | Validation samples: 155,104
+
+Epoch 1/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.02it/s, MAE=0.3351, Base_MAE=0.3719]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.62it/s]
+Train MAE: 0.5040 (Baseline: 0.5245)
+Val MAE:   0.5277 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0571
+
+Epoch 2/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:30<00:00, 14.33it/s, MAE=0.5447, Base_MAE=0.6028]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.74it/s]
+Train MAE: 0.4734 (Baseline: 0.5245)
+Val MAE:   0.5203 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0645
+
+Epoch 3/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:30<00:00, 14.29it/s, MAE=0.4831, Base_MAE=0.4971]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.72it/s]
+Train MAE: 0.4709 (Baseline: 0.5245)
+Val MAE:   0.5197 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0652
+
+Epoch 4/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.26it/s, MAE=0.3804, Base_MAE=0.4936]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.51it/s]
+Train MAE: 0.4687 (Baseline: 0.5245)
+Val MAE:   0.5154 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0695
+
+Epoch 5/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.24it/s, MAE=0.2498, Base_MAE=0.2644]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.58it/s]
+Train MAE: 0.4673 (Baseline: 0.5245)
+Val MAE:   0.5185 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0664
+
+Epoch 6/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.23it/s, MAE=0.4010, Base_MAE=0.4452]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:05<00:00, 27.60it/s]
+Train MAE: 0.4640 (Baseline: 0.5245)
+Val MAE:   0.5171 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0677
+
+Epoch 7/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.22it/s, MAE=0.4220, Base_MAE=0.4839]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.43it/s]
+Train MAE: 0.4550 (Baseline: 0.5245)
+Val MAE:   0.5180 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0669
+
+Epoch 8/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.21it/s, MAE=0.3551, Base_MAE=0.4201]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.60it/s]
+Train MAE: 0.4438 (Baseline: 0.5245)
+Val MAE:   0.5255 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0594
+
+Epoch 9/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.21it/s, MAE=0.3530, Base_MAE=0.4539]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.62it/s]
+Train MAE: 0.4309 (Baseline: 0.5245)
+Val MAE:   0.5223 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0626
+
+Epoch 10/10
+Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 443/443 [00:31<00:00, 14.21it/s, MAE=0.3611, Base_MAE=0.4728]
+Validating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 152/152 [00:04<00:00, 36.51it/s]
+Train MAE: 0.4197 (Baseline: 0.5245)
+Val MAE:   0.5345 (Baseline: 0.5849)
+[*] Checkpoint saved! Model is beating the baseline by 0.0504
