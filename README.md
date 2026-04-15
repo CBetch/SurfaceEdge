@@ -1,65 +1,108 @@
 # SurfaceEdge
 
-## Data
+A hybrid CNN + Embedding model for predicting next-day options price changes
+using the full options surface as a visual input alongside contract-specific scalars.
 
-This project uses historical options chain data for 104 US equities and ETFs (2008–2025), sourced from [philippdubach/options-data](https://github.com/philippdubach/options-data).
+## Repository Structure
 
-Data is not included in the repo. Run the download script once before anything else:
+| File | Description |
+|---|---|
+| `build_dataset.py` | Builds surface images and scalar/label files from raw parquets |
+| `Dataset.py` | PyTorch Dataset — builds flat contract index, lazy loads files |
+| `Model.py` | SurfaceEdge CNN + Embedding model architecture |
+| `main.py` | Training and evaluation entry point |
+| `download_data.py` | Downloads raw parquet data for all 104 tickers |
+| `expand_scalar.py` | Reconstructs full 120-dim scalar array from compressed .npz |
+| `baseline_mae.py` | Naive baseline (predict 0.0) MAE evaluation |
+| `BSM_pricing.py` | BAW/BSM pricing reference (kept for reference, not used as baseline) |
+
+---
+
+## Step 1 — Download Data
 
 ```bash
 python download_data.py
 ```
 
-This will populate `data/<ticker>/options.parquet` and `data/<ticker>/underlying.parquet` for all 104 tickers. Already-downloaded files are skipped automatically, so re-running is safe.
+Populates `data/<ticker>/options.parquet` and `data/<ticker>/underlying.parquet`
+for all 104 tickers (~9.4 GB total). Already-downloaded files are skipped automatically.
 
-## Building the Dataset
+---
 
-Once data is downloaded, run the dataset builder to generate surface images and labels:
+## Step 2 — Build Dataset
 
 ```python
-from dataset import build
+from build_dataset import build
 
 build()                      # all 104 tickers
 build(ticker='aapl')         # single ticker
-build(ticker='aapl', start_date='2020-01-01', end_date='2022-12-31')  # date range
+build(ticker='aapl', start_date='2020-01-01', end_date='2022-12-31')
 ```
 
 Or run directly:
 
 ```bash
-python dataset.py
+python build_dataset.py
 ```
 
-This produces the following files per ticker per trading day under `dataset/<ticker>/`:
+Produces the following files per ticker per trading day under `dataset/<ticker>/`:
 
 | File | Description |
 |---|---|
-| `<date>_calls.png` | Options surface image for calls (60 × 30 × 3) |
-| `<date>_puts.png` | Options surface image for puts (60 × 30 × 3) |
-| `<date>_calls_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
-| `<date>_puts_labels.npy` | Next-day percentage price change per grid cell (60 × 30) |
-| `<date>_calls_scalars.npy` | Per-cell scalar features (60 × 30 × 120) |
-| `<date>_puts_scalars.npy` | Per-cell scalar features (60 × 30 × 120) |
+| `<date>_calls.png` | Call surface image (60 × 30, RGB) |
+| `<date>_puts.png` | Put surface image (60 × 30, RGB) |
+| `<date>_calls.npz` | Compressed: `labels` (60×30 float32), `scalars` (60×30×16 float16) |
+| `<date>_puts.npz` | Compressed: `labels` (60×30 float32), `scalars` (60×30×16 float16) |
 
 **Surface image channels (RGB):**
-- R = implied volatility (normalized)
+- R = implied volatility (normalized to [0, 255])
 - G = log1p(open interest) (normalized)
 - B = log1p(volume) (normalized)
 
 **Grid dimensions:**
-- X axis (WIDTH = 30): expiry bins, 1–61 days to expiry
-- Y axis (HEIGHT = 60): log-moneyness bins, ln(strike/spot) from -1.0 to +1.0
+- X axis (WIDTH = 30): days to expiry, 1–61 days
+- Y axis (HEIGHT = 60): log-moneyness, ln(strike/spot) from -1.0 to +1.0
 
-**Stock split adjustment:** Strike prices are adjusted for historical stock splits so that all data is expressed in post-split terms. For each trading date, the strike is multiplied by the product of all split coefficients that occurred after that date. For example, AAPL contracts from before the 4:1 split on August 31, 2020 have their strikes multiplied by 4, and contracts from before the 7:1 split on June 9, 2014 are multiplied by 28 (7 × 4). This ensures log-moneyness is consistent across the full dataset history.
+**Stock split adjustment:** Strike prices are expressed in post-split terms across
+the full dataset history. For each trading date, strikes are multiplied by the
+product of all split coefficients occurring after that date. For example, AAPL
+contracts before the 4:1 split on August 31, 2020 have strikes multiplied by 4,
+and contracts before the 7:1 split on June 9, 2014 are multiplied by 28 (7 × 4).
 
-**Days with fewer than 100 non-zero label cells are skipped** as too sparse to provide useful training signal.
+**Days with fewer than 100 non-zero label cells are skipped** as too sparse.
 
-## Model
+---
 
-Each training sample is a single option contract on a single day. The model takes:
+## Step 3 — Train
 
-- **Surface image** `(3 × 60 × 30)` — the full options surface for that ticker/day, providing global market context
-- **Scalar vector** `(120,)` — contract-specific inputs:
+```bash
+python main.py
+python main.py --option_type calls --epochs 10 --batch_size 256 --lr 1e-4
+```
+
+**Arguments:**
+
+| Argument | Default | Description |
+|---|---|---|
+| `--dataset` | `dataset` | Path to dataset root folder |
+| `--split_date` | `2024-11-21` | Chronological train/test cutoff |
+| `--option_type` | `calls` | `calls`, `puts`, or `both` |
+| `--epochs` | `1` | Number of training epochs |
+| `--batch_size` | `256` | Batch size |
+| `--lr` | `1e-4` | Learning rate |
+| `--num_workers` | `4` | DataLoader worker count |
+| `--save_path` | `surfaceedge.pt` | Checkpoint output path |
+
+The train/test split is **strictly chronological** — all days before `split_date`
+are used for training, all days on or after are held out for testing. This prevents
+data leakage from the time-series nature of financial data.
+
+---
+
+## Scalar Layout
+
+Each `.npz` stores 16 base scalar features per cell (float16). The OHE ticker
+block is excluded from disk and reconstructed at load time from the folder name.
 
 | Index | Feature | Description |
 |---|---|---|
@@ -74,14 +117,14 @@ Each training sample is a single option contract on a single day. The model take
 | 8 | `vega` | Option vega |
 | 9 | `theta` | Option theta |
 | 10 | `spread` | Normalized bid-ask spread: (ask - bid) / mark |
-| 11 | `dividend_yield` | Annualized dividend yield of the underlying |
+| 11 | `dividend_yield` | Annualized dividend yield |
 | 12 | `days_to_next_div` | Days until next ex-dividend date, -1 if none |
 | 13 | `momentum_5d` | 5-day underlying return, 0.0 if unavailable |
 | 14 | `momentum_20d` | 20-day underlying return, 0.0 if unavailable |
 | 15 | `implied_vol` | Mean implied volatility for this bin |
-| 16–119 | `ticker_ohe` | One-hot encoded ticker (104 elements) |
+| 16–119 | `ticker_ohe` | One-hot ticker (104 elements) — reconstructed at load time |
 
-**Example scalar vector** (AAPL calls, 2025-01-16, cell (30, 17)):
+**Example** (AAPL calls, 2025-01-16, cell (30, 17)):
 
 ```
   [0]  spot             : 227.2491
@@ -105,27 +148,41 @@ Each training sample is a single option contract on a single day. The model take
   label                 : 0.055172  (5.5172%)
 ```
 
-This represents a near-ATM call (strike $230.00 vs spot $227.25) expiring in 36 days, priced at $7.25 with an IV of 26.85%. The underlying has been declining over both the 5-day (-5.95%) and 20-day (-9.07%) windows. The next day this contract's mark price increased by 5.52%.
+Near-ATM call (strike $230.00 vs spot $227.25), 36 days to expiry, priced at $7.25
+with IV of 26.85%. Underlying down 5.95% over 5 days and 9.07% over 20 days.
+Next-day mark increased by 5.52%.
 
-**Label:** next-day percentage price change — `(mark_t+1 - mark_t) / mark_t`
+**Label:** `(mark_t+1 - mark_t) / mark_t`
 
-**Baseline:** predicting `0.0` (no price change) for every contract. The model must achieve a lower MAE than this naive baseline to demonstrate the surface image contains useful predictive information.
+---
+
+## Loading Compressed Scalars
+
+To reconstruct the full 120-dim float32 scalar array from a compressed file:
+
+```python
+from expand_scalar import load_scalars
+
+scalars = load_scalars('dataset/aapl/2025-01-16_calls.npz')
+# scalars.shape -> (60, 30, 120), dtype float32
+```
+
+The OHE is reconstructed automatically from the parent folder name.
+
+---
 
 ## Baseline
 
-The naive baseline predicts `0.0` (no price change) for every contract. MAE under this baseline equals the mean absolute value of all labels — the minimum bar SurfaceEdge must beat to demonstrate that surface images contain useful predictive information.
+The naive baseline predicts `0.0` (no price change) for every contract.
 
 ```python
-from baseline import naive_predict_file, naive_evaluate_dataset
+from baseline_mae import naive_evaluate_dataset
 
-# Single file
-mae, n = naive_predict_file(
-    'dataset/aapl/2025-01-16_calls_scalars.npy',
-    'dataset/aapl/2025-01-16_calls_labels.npy',
-    verbose=True,
-)
-
-# Full ticker dataset — calls, puts, or both
-mae, n = naive_evaluate_dataset('dataset/aapl')
 mae, n = naive_evaluate_dataset('dataset/aapl', option_type='calls')
 mae, n = naive_evaluate_dataset('dataset/aapl', option_type='puts')
+```
+
+| Model | Calls MAE | Puts MAE |
+|---|---|---|
+| Naive (predict 0.0) | 0.2638 | 0.4642 |
+| SurfaceEdge | TBD | TBD |
