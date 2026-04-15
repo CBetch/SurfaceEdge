@@ -1,6 +1,6 @@
 # Data — parquet files must be downloaded locally via download_data.py
 data/**/*.parquet
-
+data/*
 # datasets
 dataset/
 dataset_filtered/
@@ -15,5 +15,6 @@ __pycache__/
 .DS_Store
 
 # Model checkpoints
+Artifacts/*
 *.pt
 *.pth

@@ -1,115 +1,191 @@
-import os
-import sys
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import DataLoader, random_split, Subset
-from tqdm import tqdm
+"""
+main.py
 
+Training entry point for SurfaceEdge.
+
+Runs one full train epoch followed by test set evaluation.
+Reports MAE for both splits and compares against the naive 0.0 baseline.
+
+Usage:
+    python main.py
+    python main.py --dataset dataset --epochs 1 --batch_size 256 --lr 1e-4
+"""
+import os
+import argparse
+import time
+import torch
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+import sys
 
 SEROOT = os.environ.get('SEROOT', '.')
 sys.path.append(SEROOT)
 from ClassDefinition.Model import SurfaceEdgeModel
-from ClassDefinition.Dataset import Dataset , FastDataset, InMemoryDataset
-
-from functools import lru_cache
+from ClassDefinition.SurfaceDataset import SurfaceDataset
 
 
+# ── Config ────────────────────────────────────────────────────────────────────
 
-def train_model(model, train_loader, val_loader, device, epochs=15, lr=5e-4):
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    criterion = nn.L1Loss() 
-    
-    for epoch in range(epochs):
-        model.train()
-        train_loss = 0.0
-        train_baseline = 0.0
-        
-        print(f"\nEpoch {epoch+1}/{epochs}")
-        train_bar = tqdm(train_loader, desc="Training")
-        
-        for batch in train_bar:
-            # Unpack the 8 dataset yields
-            image, tau, log_moneyness, is_call, mark, stats, ticker, labels = [b.to(device) for b in batch]
-            
-            optimizer.zero_grad()
-            
-            # Forward pass
-            predictions = model(image, tau, log_moneyness, is_call, mark, stats, ticker)
-            predictions = predictions.squeeze(-1) 
-            
-            loss = criterion(predictions, labels)
-            
-            loss.backward()
-            optimizer.step()
-            
-            train_loss += loss.item()
-            
-            naive_preds = torch.zeros_like(labels)
-            baseline_loss = criterion(naive_preds, labels).item()
-            train_baseline += baseline_loss
-            
-            train_bar.set_postfix({
-                'MAE': f"{loss.item():.4f}", 
-                'Base_MAE': f"{baseline_loss:.4f}"
-            })
-            
-        avg_train_loss = train_loss / len(train_loader)
-        avg_train_base = train_baseline / len(train_loader)
-        
-        # --- Validation Phase ---
-        model.eval()
-        val_loss = 0.0
-        val_baseline = 0.0
-        
-        with torch.no_grad():
-            for batch in tqdm(val_loader, desc="Validating"):
-                image, tau, log_moneyness, is_call, mark, stats, ticker, labels = [b.to(device) for b in batch]
-                
-                predictions = model(image, tau, log_moneyness, is_call, mark, stats, ticker).squeeze(-1)
-                
-                val_loss += criterion(predictions, labels).item()
-                val_baseline += criterion(torch.zeros_like(labels), labels).item()
-                
-        avg_val_loss = val_loss / len(val_loader)
-        avg_val_base = val_baseline / len(val_loader)
-        
-        print(f"Train MAE: {avg_train_loss:.4f} (Baseline: {avg_train_base:.4f})")
-        print(f"Val MAE:   {avg_val_loss:.4f} (Baseline: {avg_val_base:.4f})")
-        
-        if avg_val_loss < avg_val_base:
-            torch.save(model.state_dict(), f"surface_edge_epoch_{epoch+1}.pt")
-            print(f"[*] Checkpoint saved! Model is beating the baseline by {(avg_val_base - avg_val_loss):.4f}")
+def parse_args():
+    parser = argparse.ArgumentParser(description="SurfaceEdge Training")
+    parser.add_argument("--dataset",     type=str,   default=f"{SEROOT}/data/processed/filtered")
+    parser.add_argument("--split_date",  type=str,   default="2024-11-21")
+    # option_type is always 'both' — trains on calls and puts simultaneously
+    parser.add_argument("--option_type", type=str,   default="both")
+    parser.add_argument("--epochs",      type=int,   default=10)
+    parser.add_argument("--batch_size",  type=int,   default=256)
+    parser.add_argument("--lr",          type=float, default=1e-4)
+    parser.add_argument("--num_workers", type=int,   default=4)
+    parser.add_argument("--save_path",   type=str,   default=f"{SEROOT}/Artifacts/surfaceedge")
+    return parser.parse_args()
+
+
+# ── Training ──────────────────────────────────────────────────────────────────
+
+def run_epoch(model, loader, optimizer, device, train: bool) -> tuple[float, int]:
+    """
+    Run one epoch. Returns (mae, n_samples).
+    If train=True, runs backward pass and optimizer step.
+    """
+    model.train(train)
+    total_loss = 0.0
+    total_n    = 0
+
+    desc = "Train" if train else "Test "
+    with torch.set_grad_enabled(train):
+        for batch in tqdm(loader, desc=desc, unit="batch", leave=False):
+            # image, tau, log_moneyness, is_call, mark, ticker, label = [
+            #    b.to(device) for b in batch
+            # ]
+            image, tau, log_moneyness, is_call, mark, stats, ticker, label = [b.to(device) for b in batch]
+
+            preds = model(
+                image         = image,
+                tau           = tau,
+                log_moneyness = log_moneyness,
+                is_call       = is_call,
+                mark          = mark,
+                stats         = stats, 
+                ticker        = ticker,
+            ).squeeze(1)  # (B,)
+
+            loss = torch.mean(torch.abs(preds - label))  # MAE
+
+            if train:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            total_loss += loss.item() * len(label)
+            total_n    += len(label)
+
+    return total_loss / total_n, total_n
+
+
+def naive_mae(dataset) -> float:
+    """Compute naive baseline MAE directly from the contract index — no file loading."""
+    import numpy as np
+    from pathlib import Path
+
+    total_abs = 0.0
+    total_n   = 0
+
+    # Group samples by npz file to minimize loads
+    from collections import defaultdict
+    file_groups = defaultdict(list)
+    for npz_path_str, y, x, _ in dataset.samples:
+        file_groups[npz_path_str].append((y, x))
+
+    for npz_path_str, coords in file_groups.items():
+        data   = np.load(npz_path_str)
+        labels = data["labels"]
+        for y, x in coords:
+            total_abs += abs(float(labels[y, x]))
+            total_n   += 1
+
+    return total_abs / total_n if total_n > 0 else 0.0
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    args   = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
-    
-    model = SurfaceEdgeModel().to(device)
-    
-    # Target only MSFT to keep RAM usage sane
-    full_dataset = InMemoryDataset(path=os.path.join(SEROOT, 'dataset'), target_ticker='msft')
-    
-    # Chronological Split
-    unique_dates = sorted(list(set(full_dataset.dates)))
-    split_idx = int(0.8 * len(unique_dates))
-    train_dates = set(unique_dates[:split_idx])
-    
-    train_indices = [i for i, d in enumerate(full_dataset.dates) if d in train_dates]
-    val_indices = [i for i, d in enumerate(full_dataset.dates) if d not in train_dates]
-    
-    train_dataset = Subset(full_dataset, train_indices)
-    val_dataset = Subset(full_dataset, val_indices)
-    
-    print(f"Total Unique Days: {len(unique_dates)} (Train: {split_idx}, Val: {len(unique_dates) - split_idx})")
-    print(f"Training samples: {len(train_dataset):,} | Validation samples: {len(val_dataset):,}")
-    
-    # num_workers=0 because it's loaded in RAM. Batch size is safe to crank up here.
-    train_loader = DataLoader(train_dataset, batch_size=1024, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=1024, shuffle=False, num_workers=0)
-    
-    train_model(model, train_loader, val_loader, device, epochs=10, lr=5e-4)
+    print(f"Device      : {device}")
+    print(f"Dataset     : {args.dataset}")
+    print(f"Split date  : {args.split_date}")
+    print(f"Option type : both")
+    print(f"Batch size  : {args.batch_size}")
+    print(f"LR          : {args.lr}")
+    print()
 
-if __name__ == '__main__':
+    # ── Datasets ──────────────────────────────────────────────────────────────
+    train_ds = SurfaceDataset(args.dataset, split="train",
+                               split_date=args.split_date,
+                               option_type='both', ticker_list=["aapl", "msft", "googl", "amzn"])
+    test_ds  = SurfaceDataset(args.dataset, split="test",
+                               split_date=args.split_date,
+                               option_type='both', ticker_list=["aapl", "msft", "googl", "amzn"]) #TODO option_type use gargs 
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size  = args.batch_size,
+        shuffle     = True,
+        num_workers = args.num_workers,
+        pin_memory  = device.type == "cuda",
+        persistent_workers = args.num_workers > 0,
+    )
+    test_loader = DataLoader(
+        test_ds,
+        batch_size  = args.batch_size,
+        shuffle     = False,
+        num_workers = args.num_workers,
+        pin_memory  = device.type == "cuda",
+        persistent_workers = args.num_workers > 0,
+    )
+
+    # ── Model ─────────────────────────────────────────────────────────────────
+    model = SurfaceEdgeModel().to(device)
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Model params: {n_params:,}")
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    # ── Naive baseline ────────────────────────────────────────────────────────
+    print("\nComputing naive baseline MAE on test set ...")
+    naive = naive_mae(test_ds)
+    print(f"  Naive MAE (test) : {naive:.6f}")
+
+    # ── Training loop ─────────────────────────────────────────────────────────
+    print()
+    for epoch in range(1, args.epochs + 1):
+        t0 = time.time()
+
+        train_mae, train_n = run_epoch(model, train_loader, optimizer, device, train=True)
+        test_mae,  test_n  = run_epoch(model, test_loader,  optimizer, device, train=False)
+
+        elapsed = time.time() - t0
+        print(f"Epoch {epoch:>3}/{args.epochs} | "
+              f"Train MAE: {train_mae:.6f} ({train_n:,} contracts) | "
+              f"Test MAE:  {test_mae:.6f} ({test_n:,} contracts) | "
+              f"Naive: {naive:.6f} | "
+              f"Beat naive: {'YES' if test_mae < naive else 'NO'} | "
+              f"{elapsed:.1f}s")
+
+    # ── Save model ────────────────────────────────────────────────────────────
+        save_path = f"{args.save_path}_epoch{epoch}"
+        torch.save({
+            "model_state_dict":     model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "epochs_trained":       args.epochs,
+            "final_train_mae":      train_mae,
+            "final_test_mae":       test_mae,
+            "naive_mae":            naive,
+            "split_date":           args.split_date,
+            "option_type":          args.option_type,
+        }, save_path)
+        print(f"\nModel saved to {save_path}")
+
+
+if __name__ == "__main__":
     main()
