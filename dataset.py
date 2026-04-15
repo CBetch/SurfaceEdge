@@ -423,3 +423,6 @@ if __name__ == "__main__":
             print("Keeping existing files — already-complete days will be skipped.")
 
     build(ticker="msft")
+    build(ticker="aapl")
+    build(ticker="googl")
+    build(ticker="amzn")

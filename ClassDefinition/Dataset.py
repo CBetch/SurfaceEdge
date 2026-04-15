@@ -4,6 +4,61 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset as D
 from torchvision.io import read_image
+from functools import lru_cache
+from tqdm import tqdm
+
+class InMemoryDataset(D):
+    def __init__(self, path, target_ticker=None):
+        super().__init__()
+        self.samples = []
+        self.dates = []
+        
+        # Make it generic: search all folders, or just the specific ticker folder
+        if target_ticker:
+            search_pattern = os.path.join(path, target_ticker.lower(), '*_labels.npy')
+            print(f"Loading {target_ticker.upper()} dataset into RAM...")
+        else:
+            search_pattern = os.path.join(path, '*', '*_labels.npy')
+            print("Loading FULL dataset into RAM...")
+            
+        label_files = glob.glob(search_pattern)
+        
+        for label_file in tqdm(label_files, desc="Parsing Days"):
+            base_prefix = label_file.replace('_labels.npy', '')
+            date_str = os.path.basename(base_prefix).split('_')[0]
+            
+            labels_grid = np.load(label_file)
+            valid_y, valid_x = np.nonzero(labels_grid)
+            
+            if len(valid_y) < 100:
+                continue
+                
+            scalars_grid = np.load(f"{base_prefix}_scalars.npy")
+            image_tensor = read_image(f"{base_prefix}.png").float() / 255.0
+            
+            for y, x in zip(valid_y, valid_x):
+                cell_scalars = scalars_grid[y, x]
+                
+                contract_data = {
+                    'image': image_tensor, 
+                    'tau': torch.tensor(cell_scalars[2], dtype=torch.float32),
+                    'log_moneyness': torch.tensor(cell_scalars[3], dtype=torch.float32),
+                    'mark': torch.tensor(cell_scalars[4], dtype=torch.float32),
+                    'is_call': torch.tensor(cell_scalars[5], dtype=torch.float32),
+                    'stats': torch.tensor(cell_scalars[6:16], dtype=torch.float32),
+                    'ticker': torch.tensor(np.argmax(cell_scalars[16:120]), dtype=torch.long),
+                    'label': torch.tensor(labels_grid[y, x], dtype=torch.float32)
+                }
+                
+                self.samples.append(contract_data)
+                self.dates.append(date_str)
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        d = self.samples[idx]
+        return d['image'], d['tau'], d['log_moneyness'], d['is_call'], d['mark'], d['stats'], d['ticker'], d['label']
 
 class Dataset(D):
     def __init__(self, path):
@@ -82,4 +137,42 @@ class Dataset(D):
         label = torch.tensor(cell_label, dtype=torch.float32)
         
         # Return exactly what the train_model loop expects to unpack
+        return image, tau, log_moneyness, is_call, mark, ticker_one_hot, label
+    
+class FastDataset(Dataset):
+    def __init__(self, path):
+        super().__init__(path)
+    
+    # Each DataLoader worker will cache up to 64 unique days in its own RAM.
+    # If it sees a prefix it has loaded recently, it skips the hard drive entirely.
+    @lru_cache(maxsize=64) 
+    def _get_day_data(self, base_prefix):
+        # Read the image once
+        image = read_image(f"{base_prefix}.png").float() / 255.0 
+        
+        # We drop mmap_mode='r' here. Loading it fully into RAM once is 
+        # much faster than constantly querying the disk via mmap.
+        scalars_grid = np.load(f"{base_prefix}_scalars.npy")
+        labels_grid = np.load(f"{base_prefix}_labels.npy")
+        
+        return image, scalars_grid, labels_grid
+
+    def __getitem__(self, idx):
+        base_prefix, y, x = self.samples[idx]
+        
+        # 1. Pull the whole day's grid from RAM (or disk if it's not cached yet)
+        image, scalars_grid, labels_grid = self._get_day_data(base_prefix)
+        
+        # 2. Extract the exact cell (contract)
+        cell_scalars = scalars_grid[y, x]
+        cell_label = labels_grid[y, x]
+        
+        # 3. Parse the 110-dim Scalar Vector (Same as your original logic)
+        tau = torch.tensor(cell_scalars[2], dtype=torch.float32)
+        log_moneyness = torch.tensor(cell_scalars[3], dtype=torch.float32)
+        mark = torch.tensor(cell_scalars[4], dtype=torch.float32)
+        is_call = torch.tensor(cell_scalars[5], dtype=torch.float32)
+        ticker_one_hot = torch.tensor(cell_scalars[6:110], dtype=torch.float32) 
+        label = torch.tensor(cell_label, dtype=torch.float32)
+        
         return image, tau, log_moneyness, is_call, mark, ticker_one_hot, label
