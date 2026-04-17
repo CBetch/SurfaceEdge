@@ -1,0 +1,46 @@
+Device      : cuda
+Train Data  : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt
+Test Data   : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt
+Batch size  : 256
+LR          : 0.0001
+
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt into RAM...
+Loaded 1,101,255 contracts.
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt into RAM...
+Loaded 347,229 contracts.
+Model params: 149,039
+
+Computing naive baseline MAE on test set ...
+  Naive MAE (test) : 0.137615
+
+Epoch   1/10 | Train MAE: 0.135480 (1,101,255 contracts) | Test MAE:  0.127606 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 117.3s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch1
+Epoch   2/10 | Train MAE: 0.130329 (1,101,255 contracts) | Test MAE:  0.126799 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 84.3s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch2
+Epoch   3/10 | Train MAE: 0.129686 (1,101,255 contracts) | Test MAE:  0.127042 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 85.2s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch3
+Epoch   4/10 | Train MAE: 0.129305 (1,101,255 contracts) | Test MAE:  0.126720 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 85.2s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch4
+Epoch   5/10 | Train MAE: 0.128579 (1,101,255 contracts) | Test MAE:  0.126864 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 86.6s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch5
+Epoch   6/10 | Train MAE: 0.126240 (1,101,255 contracts) | Test MAE:  0.129325 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 85.4s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch6
+Epoch   7/10 | Train MAE: 0.121194 (1,101,255 contracts) | Test MAE:  0.135514 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 85.8s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch7
+Epoch   8/10 | Train MAE: 0.113403 (1,101,255 contracts) | Test MAE:  0.141434 (347,229 contracts) | Naive: 0.137615 | Beat naive: NO | 85.6s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch8
+Epoch   9/10 | Train MAE: 0.105326 (1,101,255 contracts) | Test MAE:  0.143796 (347,229 contracts) | Naive: 0.137615 | Beat naive: NO | 85.3s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch9
+Epoch  10/10 | Train MAE: 0.097983 (1,101,255 contracts) | Test MAE:  0.148255 (347,229 contracts) | Naive: 0.137615 | Beat naive: NO | 85.8s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch10
+

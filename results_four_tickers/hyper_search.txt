@@ -1,0 +1,477 @@
+$ python3 Main/main.py
+Device      : cuda
+Train Data  : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt
+Test Data   : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt
+
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt into RAM...
+Loaded 1,101,255 contracts.
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt into RAM...
+Loaded 347,229 contracts.
+
+Computing naive baseline MAE on test set ...
+  Naive MAE (test) : 0.137615
+
+
+======================================================================
+ITERATION 1 HYPERPARAMETERS
+======================================================================
+LR         : 0.0001
+Batch Size : 512
+Dropout    : 0.2
+Hidden Dim : 32
+Img Dim    : 128
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 115,585
+
+Epoch   1/10 Train MAE: 0.138373 Test MAE:  0.131202 Naive: 0.137615 171.6s [NEW BEST!]
+Epoch   2/10 Train MAE: 0.132446 Test MAE:  0.128766 Naive: 0.137615 136.3s [NEW BEST!]
+Epoch   3/10 Train MAE: 0.128517 Test MAE:  0.131136 Naive: 0.137615 136.9s
+Epoch   4/10 Train MAE: 0.119280 Test MAE:  0.136949 Naive: 0.137615 136.8s
+Epoch   5/10 Train MAE: 0.106125 Test MAE:  0.142411 Naive: 0.137615 138.3s
+Epoch   6/10 Train MAE: 0.095227 Test MAE:  0.147110 Naive: 0.137615 138.6s
+Epoch   7/10 Train MAE: 0.086630 Test MAE:  0.143017 Naive: 0.137615 138.2s
+Epoch   8/10 Train MAE: 0.079409 Test MAE:  0.146369 Naive: 0.137615 136.3s
+Epoch   9/10 Train MAE: 0.073541 Test MAE:  0.155576 Naive: 0.137615 136.9s
+Epoch  10/10 Train MAE: 0.069819 Test MAE:  0.156234 Naive: 0.137615 137.2s
+
+BEST OVERALL MODEL SO FAR (Iteration 1, Epoch 2):
+   Test MAE: 0.128766
+   Config:   LR=0.0001, Batch=512, Drop=0.2, Hidden=32, Img=128, Ticker=32
+
+======================================================================
+ITERATION 2 HYPERPARAMETERS
+======================================================================
+LR         : 5e-05
+Batch Size : 512
+Dropout    : 0.05
+Hidden Dim : 128
+Img Dim    : 128
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 132,673
+
+Epoch   1/10 Train MAE: 0.140756 Test MAE:  0.133216 Naive: 0.137615 170.5s
+Epoch   2/10 Train MAE: 0.133300 Test MAE:  0.130435 Naive: 0.137615 137.5s
+Epoch   3/10 Train MAE: 0.130837 Test MAE:  0.129652 Naive: 0.137615 137.6s
+Epoch   4/10 Train MAE: 0.128544 Test MAE:  0.129411 Naive: 0.137615 137.5s
+Epoch   5/10 Train MAE: 0.124985 Test MAE:  0.130777 Naive: 0.137615 137.2s
+Epoch   6/10 Train MAE: 0.120056 Test MAE:  0.131806 Naive: 0.137615 137.1s
+Epoch   7/10 Train MAE: 0.114087 Test MAE:  0.133556 Naive: 0.137615 137.2s
+Epoch   8/10 Train MAE: 0.108743 Test MAE:  0.137088 Naive: 0.137615 137.3s
+Epoch   9/10 Train MAE: 0.103784 Test MAE:  0.139289 Naive: 0.137615 137.2s
+Epoch  10/10 Train MAE: 0.099660 Test MAE:  0.139867 Naive: 0.137615 137.0s
+
+BEST OVERALL MODEL SO FAR (Iteration 1, Epoch 2):
+   Test MAE: 0.128766
+   Config:   LR=0.0001, Batch=512, Drop=0.2, Hidden=32, Img=128, Ticker=32
+
+======================================================================
+ITERATION 3 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 512
+Dropout    : 0.2
+Hidden Dim : 64
+Img Dim    : 64
+Ticker Dim : 128
+----------------------------------------------------------------------
+Model params: 115,457
+
+Epoch   1/10 Train MAE: 0.164963 Test MAE:  0.134814 Naive: 0.137615 169.5s
+Epoch   2/10 Train MAE: 0.136646 Test MAE:  0.133410 Naive: 0.137615 137.1s
+Epoch   3/10 Train MAE: 0.135021 Test MAE:  0.132457 Naive: 0.137615 137.5s
+Epoch   4/10 Train MAE: 0.134119 Test MAE:  0.131686 Naive: 0.137615 137.3s
+Epoch   5/10 Train MAE: 0.133624 Test MAE:  0.131161 Naive: 0.137615 137.2s
+Epoch   6/10 Train MAE: 0.133173 Test MAE:  0.130976 Naive: 0.137615 137.3s
+Epoch   7/10 Train MAE: 0.132841 Test MAE:  0.130600 Naive: 0.137615 137.2s
+Epoch   8/10 Train MAE: 0.132498 Test MAE:  0.130268 Naive: 0.137615 137.2s
+Epoch   9/10 Train MAE: 0.132157 Test MAE:  0.130027 Naive: 0.137615 137.1s
+Epoch  10/10 Train MAE: 0.131767 Test MAE:  0.129623 Naive: 0.137615 137.3s
+
+BEST OVERALL MODEL SO FAR (Iteration 1, Epoch 2):
+   Test MAE: 0.128766
+   Config:   LR=0.0001, Batch=512, Drop=0.2, Hidden=32, Img=128, Ticker=32
+
+======================================================================
+ITERATION 4 HYPERPARAMETERS
+======================================================================
+LR         : 0.0001
+Batch Size : 128
+Dropout    : 0.2
+Hidden Dim : 32
+Img Dim    : 256
+Ticker Dim : 128
+----------------------------------------------------------------------
+Model params: 139,649
+
+Epoch   1/10 Train MAE: 0.133920 Test MAE:  0.130275 Naive: 0.137615 178.7s
+Epoch   2/10 Train MAE: 0.112330 Test MAE:  0.142535 Naive: 0.137615 145.4s
+Epoch   3/10 Train MAE: 0.082073 Test MAE:  0.156930 Naive: 0.137615 145.7s
+Epoch   4/10 Train MAE: 0.068169 Test MAE:  0.150791 Naive: 0.137615 145.5s
+Epoch   5/10 Train MAE: 0.061993 Test MAE:  0.159222 Naive: 0.137615 145.7s
+Epoch   6/10 Train MAE: 0.059027 Test MAE:  0.150316 Naive: 0.137615 145.9s
+Epoch   7/10 Train MAE: 0.057221 Test MAE:  0.153124 Naive: 0.137615 145.4s
+Epoch   8/10 Train MAE: 0.055953 Test MAE:  0.155542 Naive: 0.137615 145.6s
+Epoch   9/10 Train MAE: 0.055035 Test MAE:  0.149420 Naive: 0.137615 145.7s
+Epoch  10/10 Train MAE: 0.054267 Test MAE:  0.148649 Naive: 0.137615 145.8s
+
+BEST OVERALL MODEL SO FAR (Iteration 1, Epoch 2):
+   Test MAE: 0.128766
+   Config:   LR=0.0001, Batch=512, Drop=0.2, Hidden=32, Img=128, Ticker=32
+
+======================================================================
+ITERATION 5 HYPERPARAMETERS
+======================================================================
+LR         : 0.0001
+Batch Size : 512
+Dropout    : 0.15
+Hidden Dim : 128
+Img Dim    : 128
+Ticker Dim : 64
+----------------------------------------------------------------------
+Model params: 136,897
+
+Epoch   1/10 Train MAE: 0.140028 Test MAE:  0.131092 Naive: 0.137615 169.7s
+Epoch   2/10 Train MAE: 0.131767 Test MAE:  0.129420 Naive: 0.137615 136.8s
+Epoch   3/10 Train MAE: 0.127272 Test MAE:  0.129872 Naive: 0.137615 137.5s
+Epoch   4/10 Train MAE: 0.118301 Test MAE:  0.134348 Naive: 0.137615 137.1s
+Epoch   5/10 Train MAE: 0.107513 Test MAE:  0.138762 Naive: 0.137615 137.5s
+Epoch   6/10 Train MAE: 0.097462 Test MAE:  0.146429 Naive: 0.137615 137.2s
+Epoch   7/10 Train MAE: 0.088788 Test MAE:  0.152036 Naive: 0.137615 137.4s
+Epoch   8/10 Train MAE: 0.081725 Test MAE:  0.150442 Naive: 0.137615 137.6s
+Epoch   9/10 Train MAE: 0.075931 Test MAE:  0.154070 Naive: 0.137615 137.7s
+Epoch  10/10 Train MAE: 0.071617 Test MAE:  0.154404 Naive: 0.137615 137.3s
+
+BEST OVERALL MODEL SO FAR (Iteration 1, Epoch 2):
+   Test MAE: 0.128766
+   Config:   LR=0.0001, Batch=512, Drop=0.2, Hidden=32, Img=128, Ticker=32
+
+======================================================================
+ITERATION 6 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 256
+Dropout    : 0.2
+Hidden Dim : 128
+Img Dim    : 64
+Ticker Dim : 128
+----------------------------------------------------------------------
+Model params: 128,897
+
+Epoch   1/10 Train MAE: 0.164832 Test MAE:  0.134377 Naive: 0.137615 172.4s
+Epoch   2/10 Train MAE: 0.135186 Test MAE:  0.132249 Naive: 0.137615 139.4s
+Epoch   3/10 Train MAE: 0.133814 Test MAE:  0.131299 Naive: 0.137615 139.0s
+Epoch   4/10 Train MAE: 0.133020 Test MAE:  0.130623 Naive: 0.137615 139.7s
+Epoch   5/10 Train MAE: 0.132355 Test MAE:  0.130393 Naive: 0.137615 139.4s
+Epoch   6/10 Train MAE: 0.131770 Test MAE:  0.129837 Naive: 0.137615 139.6s
+Epoch   7/10 Train MAE: 0.131175 Test MAE:  0.129688 Naive: 0.137615 139.8s
+Epoch   8/10 Train MAE: 0.130626 Test MAE:  0.129094 Naive: 0.137615 139.6s
+Epoch   9/10 Train MAE: 0.130042 Test MAE:  0.129251 Naive: 0.137615 140.2s
+Epoch  10/10 Train MAE: 0.129527 Test MAE:  0.128479 Naive: 0.137615 142.4s [NEW BEST!]
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 7 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 128
+Dropout    : 0.15
+Hidden Dim : 64
+Img Dim    : 64
+Ticker Dim : 128
+----------------------------------------------------------------------
+Model params: 115,457
+
+Epoch   1/10 Train MAE: 0.145059 Test MAE:  0.132816 Naive: 0.137615 178.5s
+Epoch   2/10 Train MAE: 0.134464 Test MAE:  0.131666 Naive: 0.137615 145.3s
+Epoch   3/10 Train MAE: 0.133389 Test MAE:  0.130974 Naive: 0.137615 145.3s
+Epoch   4/10 Train MAE: 0.132515 Test MAE:  0.130392 Naive: 0.137615 145.0s
+Epoch   5/10 Train MAE: 0.131678 Test MAE:  0.130041 Naive: 0.137615 145.2s
+Epoch   6/10 Train MAE: 0.130919 Test MAE:  0.129716 Naive: 0.137615 145.4s
+Epoch   7/10 Train MAE: 0.130191 Test MAE:  0.128970 Naive: 0.137615 145.5s
+Epoch   8/10 Train MAE: 0.129419 Test MAE:  0.128810 Naive: 0.137615 145.2s
+Epoch   9/10 Train MAE: 0.128637 Test MAE:  0.129034 Naive: 0.137615 145.2s
+Epoch  10/10 Train MAE: 0.127762 Test MAE:  0.129550 Naive: 0.137615 145.3s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 8 HYPERPARAMETERS
+======================================================================
+LR         : 0.0001
+Batch Size : 64
+Dropout    : 0.2
+Hidden Dim : 32
+Img Dim    : 128
+Ticker Dim : 128
+----------------------------------------------------------------------
+Model params: 119,041
+
+Epoch   1/10 Train MAE: 0.132300 Test MAE:  0.131404 Naive: 0.137615 191.7s
+Epoch   2/10 Train MAE: 0.105159 Test MAE:  0.157418 Naive: 0.137615 158.5s
+Epoch   3/10 Train MAE: 0.075355 Test MAE:  0.149915 Naive: 0.137615 158.3s
+Epoch   4/10 Train MAE: 0.063939 Test MAE:  0.152432 Naive: 0.137615 158.3s
+Epoch   5/10 Train MAE: 0.059870 Test MAE:  0.151064 Naive: 0.137615 158.2s
+Epoch   6/10 Train MAE: 0.057773 Test MAE:  0.148813 Naive: 0.137615 158.6s
+Epoch   7/10 Train MAE: 0.056082 Test MAE:  0.152177 Naive: 0.137615 158.4s
+Epoch   8/10 Train MAE: 0.054963 Test MAE:  0.151091 Naive: 0.137615 158.6s
+Epoch   9/10 Train MAE: 0.053979 Test MAE:  0.147074 Naive: 0.137615 159.0s
+Epoch  10/10 Train MAE: 0.053001 Test MAE:  0.146715 Naive: 0.137615 158.9s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 9 HYPERPARAMETERS
+======================================================================
+LR         : 0.0001
+Batch Size : 256
+Dropout    : 0.15
+Hidden Dim : 32
+Img Dim    : 256
+Ticker Dim : 64
+----------------------------------------------------------------------
+Model params: 137,345
+
+Epoch   1/10 Train MAE: 0.136679 Test MAE:  0.131000 Naive: 0.137615 171.5s
+Epoch   2/10 Train MAE: 0.122377 Test MAE:  0.135484 Naive: 0.137615 139.9s
+Epoch   3/10 Train MAE: 0.092382 Test MAE:  0.144003 Naive: 0.137615 141.4s
+Epoch   4/10 Train MAE: 0.073503 Test MAE:  0.144696 Naive: 0.137615 139.3s
+Epoch   5/10 Train MAE: 0.064320 Test MAE:  0.153682 Naive: 0.137615 138.8s
+Epoch   6/10 Train MAE: 0.059413 Test MAE:  0.150713 Naive: 0.137615 138.9s
+Epoch   7/10 Train MAE: 0.056996 Test MAE:  0.152394 Naive: 0.137615 138.7s
+Epoch   8/10 Train MAE: 0.055220 Test MAE:  0.156812 Naive: 0.137615 139.1s
+Epoch   9/10 Train MAE: 0.054015 Test MAE:  0.148395 Naive: 0.137615 138.9s
+Epoch  10/10 Train MAE: 0.053022 Test MAE:  0.153724 Naive: 0.137615 139.0s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 10 HYPERPARAMETERS
+======================================================================
+LR         : 0.0005
+Batch Size : 256
+Dropout    : 0.1
+Hidden Dim : 64
+Img Dim    : 128
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 121,281
+
+Epoch   1/10 Train MAE: 0.124281 Test MAE:  0.143021 Naive: 0.137615 174.0s
+Epoch   2/10 Train MAE: 0.065232 Test MAE:  0.147782 Naive: 0.137615 138.1s
+Epoch   3/10 Train MAE: 0.052304 Test MAE:  0.148327 Naive: 0.137615 138.4s
+Epoch   4/10 Train MAE: 0.048854 Test MAE:  0.146344 Naive: 0.137615 138.7s
+Epoch   5/10 Train MAE: 0.046726 Test MAE:  0.147750 Naive: 0.137615 138.5s
+Epoch   6/10 Train MAE: 0.045065 Test MAE:  0.145327 Naive: 0.137615 138.8s
+Epoch   7/10 Train MAE: 0.043632 Test MAE:  0.144478 Naive: 0.137615 139.9s
+Epoch   8/10 Train MAE: 0.042363 Test MAE:  0.146310 Naive: 0.137615 139.2s
+Epoch   9/10 Train MAE: 0.041308 Test MAE:  0.145645 Naive: 0.137615 138.8s
+Epoch  10/10 Train MAE: 0.040437 Test MAE:  0.144338 Naive: 0.137615 138.8s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 11 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 512
+Dropout    : 0.05
+Hidden Dim : 32
+Img Dim    : 128
+Ticker Dim : 64
+----------------------------------------------------------------------
+Model params: 116,737
+
+Epoch   1/10 Train MAE: 0.162304 Test MAE:  0.135270 Naive: 0.137615 172.0s
+Epoch   2/10 Train MAE: 0.137757 Test MAE:  0.134448 Naive: 0.137615 136.2s
+Epoch   3/10 Train MAE: 0.136307 Test MAE:  0.133546 Naive: 0.137615 137.0s
+Epoch   4/10 Train MAE: 0.135364 Test MAE:  0.132947 Naive: 0.137615 136.8s
+Epoch   5/10 Train MAE: 0.134628 Test MAE:  0.132265 Naive: 0.137615 136.7s
+Epoch   6/10 Train MAE: 0.133964 Test MAE:  0.131788 Naive: 0.137615 136.6s
+Epoch   7/10 Train MAE: 0.133507 Test MAE:  0.131229 Naive: 0.137615 136.8s
+Epoch   8/10 Train MAE: 0.133067 Test MAE:  0.131043 Naive: 0.137615 136.7s
+Epoch   9/10 Train MAE: 0.132610 Test MAE:  0.130726 Naive: 0.137615 137.3s
+Epoch  10/10 Train MAE: 0.132168 Test MAE:  0.130725 Naive: 0.137615 136.8s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 12 HYPERPARAMETERS
+======================================================================
+LR         : 0.0001
+Batch Size : 512
+Dropout    : 0.15
+Hidden Dim : 64
+Img Dim    : 64
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 108,929
+
+Epoch   1/10 Train MAE: 0.140358 Test MAE:  0.131400 Naive: 0.137615 169.2s
+Epoch   2/10 Train MAE: 0.132159 Test MAE:  0.129131 Naive: 0.137615 136.0s
+Epoch   3/10 Train MAE: 0.129313 Test MAE:  0.129346 Naive: 0.137615 136.4s
+Epoch   4/10 Train MAE: 0.125130 Test MAE:  0.133269 Naive: 0.137615 137.0s
+Epoch   5/10 Train MAE: 0.117697 Test MAE:  0.133128 Naive: 0.137615 136.6s
+Epoch   6/10 Train MAE: 0.108681 Test MAE:  0.139160 Naive: 0.137615 136.9s
+Epoch   7/10 Train MAE: 0.100192 Test MAE:  0.148267 Naive: 0.137615 136.9s
+Epoch   8/10 Train MAE: 0.092584 Test MAE:  0.152535 Naive: 0.137615 136.6s
+Epoch   9/10 Train MAE: 0.085880 Test MAE:  0.147339 Naive: 0.137615 136.8s
+Epoch  10/10 Train MAE: 0.080287 Test MAE:  0.146257 Naive: 0.137615 136.7s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 13 HYPERPARAMETERS
+======================================================================
+LR         : 5e-05
+Batch Size : 256
+Dropout    : 0.2
+Hidden Dim : 64
+Img Dim    : 64
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 108,929
+
+Epoch   1/10 Train MAE: 0.140205 Test MAE:  0.131385 Naive: 0.137615 171.3s
+Epoch   2/10 Train MAE: 0.133041 Test MAE:  0.129953 Naive: 0.137615 138.6s
+Epoch   3/10 Train MAE: 0.131207 Test MAE:  0.128963 Naive: 0.137615 139.0s
+Epoch   4/10 Train MAE: 0.129297 Test MAE:  0.128715 Naive: 0.137615 138.7s
+Epoch   5/10 Train MAE: 0.126595 Test MAE:  0.129424 Naive: 0.137615 138.9s
+Epoch   6/10 Train MAE: 0.122637 Test MAE:  0.131696 Naive: 0.137615 139.1s
+Epoch   7/10 Train MAE: 0.117586 Test MAE:  0.132505 Naive: 0.137615 139.0s
+Epoch   8/10 Train MAE: 0.111613 Test MAE:  0.137662 Naive: 0.137615 138.9s
+Epoch   9/10 Train MAE: 0.105848 Test MAE:  0.137628 Naive: 0.137615 138.9s
+Epoch  10/10 Train MAE: 0.100426 Test MAE:  0.140454 Naive: 0.137615 138.8s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 14 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 512
+Dropout    : 0.2
+Hidden Dim : 128
+Img Dim    : 256
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 165,569
+
+Epoch   1/10 Train MAE: 0.156253 Test MAE:  0.133860 Naive: 0.137615 168.9s
+Epoch   2/10 Train MAE: 0.135706 Test MAE:  0.132852 Naive: 0.137615 136.6s
+Epoch   3/10 Train MAE: 0.134530 Test MAE:  0.132096 Naive: 0.137615 136.5s
+Epoch   4/10 Train MAE: 0.133620 Test MAE:  0.131639 Naive: 0.137615 136.6s
+Epoch   5/10 Train MAE: 0.132871 Test MAE:  0.130871 Naive: 0.137615 136.8s
+Epoch   6/10 Train MAE: 0.132192 Test MAE:  0.130586 Naive: 0.137615 136.9s
+Epoch   7/10 Train MAE: 0.131479 Test MAE:  0.130247 Naive: 0.137615 136.9s
+Epoch   8/10 Train MAE: 0.130845 Test MAE:  0.129947 Naive: 0.137615 136.8s
+Epoch   9/10 Train MAE: 0.130207 Test MAE:  0.129742 Naive: 0.137615 137.9s
+Epoch  10/10 Train MAE: 0.129538 Test MAE:  0.129333 Naive: 0.137615 136.8s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 15 HYPERPARAMETERS
+======================================================================
+LR         : 5e-05
+Batch Size : 128
+Dropout    : 0.15
+Hidden Dim : 64
+Img Dim    : 256
+Ticker Dim : 64
+----------------------------------------------------------------------
+Model params: 148,161
+
+Epoch   1/10 Train MAE: 0.135288 Test MAE:  0.130324 Naive: 0.137615 177.8s
+Epoch   2/10 Train MAE: 0.127933 Test MAE:  0.130691 Naive: 0.137615 144.9s
+Epoch   3/10 Train MAE: 0.113760 Test MAE:  0.142033 Naive: 0.137615 144.7s
+Epoch   4/10 Train MAE: 0.096379 Test MAE:  0.144363 Naive: 0.137615 144.8s
+Epoch   5/10 Train MAE: 0.082048 Test MAE:  0.162487 Naive: 0.137615 144.8s
+Epoch   6/10 Train MAE: 0.072065 Test MAE:  0.157789 Naive: 0.137615 145.1s
+Epoch   7/10 Train MAE: 0.065329 Test MAE:  0.151353 Naive: 0.137615 145.1s
+Epoch   8/10 Train MAE: 0.060917 Test MAE:  0.158653 Naive: 0.137615 145.1s
+Epoch   9/10 Train MAE: 0.058043 Test MAE:  0.162928 Naive: 0.137615 144.8s
+Epoch  10/10 Train MAE: 0.055864 Test MAE:  0.160448 Naive: 0.137615 144.9s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 16 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 128
+Dropout    : 0.1
+Hidden Dim : 64
+Img Dim    : 128
+Ticker Dim : 32
+----------------------------------------------------------------------
+Model params: 121,281
+
+Epoch   1/10 Train MAE: 0.145247 Test MAE:  0.133026 Naive: 0.137615 177.1s
+Epoch   2/10 Train MAE: 0.134556 Test MAE:  0.131544 Naive: 0.137615 144.3s
+Epoch   3/10 Train MAE: 0.133394 Test MAE:  0.130960 Naive: 0.137615 144.9s
+Epoch   4/10 Train MAE: 0.132515 Test MAE:  0.130189 Naive: 0.137615 145.2s
+Epoch   5/10 Train MAE: 0.131712 Test MAE:  0.129662 Naive: 0.137615 144.9s
+Epoch   6/10 Train MAE: 0.130863 Test MAE:  0.129258 Naive: 0.137615 145.2s
+Epoch   7/10 Train MAE: 0.130025 Test MAE:  0.128946 Naive: 0.137615 144.9s
+Epoch   8/10 Train MAE: 0.129024 Test MAE:  0.128958 Naive: 0.137615 145.1s
+Epoch   9/10 Train MAE: 0.127856 Test MAE:  0.129588 Naive: 0.137615 145.0s
+Epoch  10/10 Train MAE: 0.126481 Test MAE:  0.128847 Naive: 0.137615 145.0s
+
+BEST OVERALL MODEL SO FAR (Iteration 6, Epoch 10):
+   Test MAE: 0.128479
+   Config:   LR=1e-05, Batch=256, Drop=0.2, Hidden=128, Img=64, Ticker=128
+
+======================================================================
+ITERATION 17 HYPERPARAMETERS
+======================================================================
+LR         : 1e-05
+Batch Size : 128
+Dropout    : 0.2
+Hidden Dim : 64
+Img Dim    : 64
+Ticker Dim : 64
+----------------------------------------------------------------------
+Model params: 111,105
+
+Epoch   1/10 Train MAE: 0.146569 Test MAE:  0.133022 Naive: 0.137615 177.0s
+Epoch   2/10 Train MAE: 0.135239 Test MAE:  0.132288 Naive: 0.137615 145.5s
+Traceback (most recent call last):
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 229, in <module>
+    main()
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 170, in main
+    train_mae, train_n = run_epoch(model, train_loader, optimizer, device, train=True)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Troyb\cygwin\Troyb\repos\SurfaceEdge\Main\main.py", line 63, in run_epoch
+    loss.backward()
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\_tensor.py", line 631, in backward
+    torch.autograd.backward(
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\autograd\__init__.py", line 374, in backward
+    grad_tensors_ = _make_grads(tensors, grad_tensors_, is_grads_batched=False)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\autograd\__init__.py", line 231, in _make_grads
+    torch.ones_like(out, memory_format=torch.preserve_format)
+KeyboardInterrupt
+

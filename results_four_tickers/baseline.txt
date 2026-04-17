@@ -1,0 +1,38 @@
+$ python3 Main/main.py
+Device      : cuda
+Train Data  : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt
+Test Data   : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt
+
+==================================================
+TRAINING WITH FIXED HYPERPARAMETERS
+==================================================
+LR         : 1e-05
+Batch Size : 256
+Dropout    : 0.2
+Hidden Dim : 128
+Img Dim    : 64
+Ticker Dim : 128
+--------------------------------------------------
+
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt into RAM...
+Loaded 1,101,255 contracts.
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt into RAM...
+Loaded 347,229 contracts.
+Computing naive baseline MAE on test set ...
+  Naive MAE (test) : 0.137615
+
+Model params: 128,897
+
+Epoch   1/10 Train MAE: 0.152279 Test MAE:  0.133715 Naive: 0.137615 170.4s [NEW BEST!]
+Epoch   2/10 Train MAE: 0.135056 Test MAE:  0.132372 Naive: 0.137615 139.0s [NEW BEST!]
+Epoch   3/10 Train MAE: 0.133746 Test MAE:  0.131572 Naive: 0.137615 138.8s [NEW BEST!]
+Epoch   4/10 Train MAE: 0.132947 Test MAE:  0.130666 Naive: 0.137615 139.1s [NEW BEST!]
+Epoch   5/10 Train MAE: 0.132330 Test MAE:  0.130233 Naive: 0.137615 138.9s [NEW BEST!]
+Epoch   6/10 Train MAE: 0.131687 Test MAE:  0.129837 Naive: 0.137615 139.4s [NEW BEST!]
+Epoch   7/10 Train MAE: 0.131185 Test MAE:  0.129419 Naive: 0.137615 141.2s [NEW BEST!]
+Epoch   8/10 Train MAE: 0.130676 Test MAE:  0.129160 Naive: 0.137615 139.1s [NEW BEST!]
+Epoch   9/10 Train MAE: 0.130194 Test MAE:  0.128816 Naive: 0.137615 139.3s [NEW BEST!]
+Epoch  10/10 Train MAE: 0.129752 Test MAE:  0.128779 Naive: 0.137615 139.6s [NEW BEST!]
+
+Training Complete. Best Test MAE: 0.128779
+

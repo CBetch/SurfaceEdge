@@ -1,0 +1,30 @@
+$ python3 Main/main.py
+Device      : cuda
+Train Data  : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt
+Test Data   : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt
+Batch size  : 256
+LR          : 0.0001
+
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt into RAM...
+Loaded 1,101,255 contracts.
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt into RAM...
+Loaded 347,229 contracts.
+Model params: 149,039
+
+Computing naive baseline MAE on test set ...
+  Naive MAE (test) : 0.137615
+
+Epoch   1/10 | Train MAE: 0.135770 (1,101,255 contracts) | Test MAE:  0.129573 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 172.0s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch1
+Epoch   2/10 | Train MAE: 0.127167 (1,101,255 contracts) | Test MAE:  0.137091 (347,229 contracts) | Naive: 0.137615 | Beat naive: YES | 139.4s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch2
+Epoch   3/10 | Train MAE: 0.106650 (1,101,255 contracts) | Test MAE:  0.144328 (347,229 contracts) | Naive: 0.137615 | Beat naive: NO | 141.9s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch3
+Epoch   4/10 | Train MAE: 0.085049 (1,101,255 contracts) | Test MAE:  0.146603 (347,229 contracts) | Naive: 0.137615 | Beat naive: NO | 141.0s
+
+Model saved to C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/Artifacts/surfaceedge_epoch4
+Epoch   5/10 | Train MAE: 0.071692 (1,101,255 contracts) | Test MAE:  0.155777 (347,229 contracts) | Naive: 0.137615 | Beat naive: NO | 139.9s
+
