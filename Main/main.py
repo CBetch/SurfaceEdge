@@ -17,8 +17,8 @@ import sys
 
 SEROOT = os.environ.get('SEROOT', '.')
 sys.path.append(SEROOT)
-from ClassDefinition.Model import SurfaceEdgeModelBaseline, SurfaceEdgeModelDeepHead
-from ClassDefinition.SurfaceDataset import SurfaceDataset
+from ClassDefinition.Model import SurfaceEdgeModelBaseline, SurfaceEdgeModelDeepHead, SurfaceSequenceModel
+from ClassDefinition.SurfaceDataset import SurfaceDataset, SequenceSurfaceDataset 
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +63,89 @@ def run_epoch(model, loader, optimizer, device, train: bool) -> tuple[float, int
                 loss.backward()
                 optimizer.step()
 
+            total_loss += loss.item() * len(label)
+            total_n    += len(label)
+
+    return total_loss / total_n, total_n
+
+def run_epoch_decoder(model, loader, optimizer, device, train: bool, accum_steps: int = 16) -> tuple[float, int]:
+    model.train(train)
+    total_loss = 0.0
+    total_n    = 0
+
+    desc = "Train" if train else "Test "
+
+    # Reset gradients at the start of the epoch
+    if train:
+        optimizer.zero_grad()
+
+    """with torch.set_grad_enabled(train):
+        for i, batch in enumerate(tqdm(loader, desc=desc, unit="batch", leave=False)):
+            # The dataset now yields 5D image tensors and 2D scalar tensors (Sequence Length added)
+            image, tau, log_moneyness, is_call, mark, stats, ticker, label = [b.to(device) for b in batch]
+
+            # Forward pass
+            # Note: Because your dataset filters for valid 25-day chronological sequences,
+            # we don't need to pass a padding_mask. Every day is real data.
+            preds = model(
+                image         = image,
+                tau           = tau,
+                log_moneyness = log_moneyness,
+                is_call       = is_call,
+                mark          = mark,
+                stats         = stats,
+                ticker        = ticker,
+            ).squeeze(1)"""
+    with torch.set_grad_enabled(train):
+        for i, batch in enumerate(tqdm(loader, desc=desc, unit="batch", leave=False)):
+
+            # NEW: Catch the padding_mask
+            image, tau, log_moneyness, is_call, mark, stats, ticker, label, padding_mask = [b.to(device) for b in batch]
+
+            # Forward pass
+            preds = model(
+                image         = image,
+                tau           = tau,
+                log_moneyness = log_moneyness,
+                is_call       = is_call,
+                mark          = mark,
+                stats         = stats,
+                ticker        = ticker,
+                padding_mask  = padding_mask, # NEW: Pass mask to model
+            ).squeeze(1)
+
+            # Calculate Mean Absolute Error (MAE)
+            loss = torch.mean(torch.abs(preds - label))
+
+            # ─── ADD THIS SANITY CHECK BLOCK ──────────────────────────────
+            if not train and i == 0:  # Only print on the first test batch
+                print("\n\n--- SANITY CHECK: PREDICTIONS VS TARGETS ---")
+                # Print up to 10 samples from this batch
+                for j in range(min(10, len(preds))):
+                    p = preds[j].item()
+                    t = label[j].item()
+                    print(f"Pred: {p:>+8.4f}  |  Target: {t:>+8.4f}  |  Error: {abs(p-t):.4f}")
+
+                # Check for model collapse (is it guessing the same number?)
+                std_dev = torch.std(preds).item()
+                print(f"\nPrediction StdDev: {std_dev:.6f}")
+                if std_dev < 1e-4:
+                    print("WARNING: Model has collapsed. It is predicting the exact same number for everything.")
+                print("--------------------------------------------\n")
+            # ──────────────────────────────────────────────────────────────
+
+            if train:
+                # Scale the loss to account for gradient accumulation
+                # (Otherwise the gradients would be X times larger than normal)
+                scaled_loss = loss / accum_steps
+                scaled_loss.backward()
+
+                # Take an optimizer step only after 'accum_steps' batches
+                if (i + 1) % accum_steps == 0 or (i + 1) == len(loader):
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+            # Track total loss (use the unscaled loss for accurate MAE reporting)
             total_loss += loss.item() * len(label)
             total_n    += len(label)
 
@@ -224,7 +307,7 @@ def hyper_search():
         print(f"   Config:   LR={best_config['lr']}, Batch={best_config['batch']}, Drop={best_config['drop']}, "
               f"Hidden={best_config['hidden']}, Img={best_config['img']}, Ticker={best_config['ticker']}")
 
-def main():
+def non_decoder():
     args   = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device      : {device}")
@@ -341,6 +424,141 @@ def main():
 
     print(f"\nTraining Complete. Best Test MAE: {best_test_mae:.6f}")
 
+def main():
+    args   = parse_args()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device      : {device}")
+    print(f"Train Data  : {args.train_data}")
+    print(f"Test Data   : {args.test_data}")
+    print()
+
+    # ── Fixed Hyperparameters ─────────────────────────────────────────────────
+    lr         = 1e-05
+    # Drastically reduced batch size to prevent VRAM OOM from 5D sequence tensors
+    batch_size = 16  
+    dropout    = 0.2
+    hidden_dim = 128
+    img_dim    = 64
+    ticker_dim = 128
+    
+    # ── Transformer/Sequence Hyperparameters ──────────────────────────────────
+    seq_len    = 25
+    embed_dim  = 256
+    num_heads  = 4
+    num_layers = 2
+
+    print(f"{'='*50}")
+    print("TRAINING SEQUENCE DECODER WITH FIXED HYPERPARAMETERS")
+    print(f"{'='*50}")
+    print(f"LR         : {lr}")
+    print(f"Batch Size : {batch_size} (Lowered for Sequence VRAM limit)")
+    print(f"Seq Len    : {seq_len}")
+    print(f"Embed Dim  : {embed_dim}")
+    print(f"Num Heads  : {num_heads}")
+    print(f"Num Layers : {num_layers}")
+    print(f"Dropout    : {dropout}")
+    print(f"Hidden Dim : {hidden_dim}")
+    print(f"Img Dim    : {img_dim}")
+    print(f"Ticker Dim : {ticker_dim}")
+    print(f"{'-'*50}\n")
+
+    # ── Datasets ──────────────────────────────────────────────────────────────
+    train_ds = SequenceSurfaceDataset(master_file_path=args.train_data, seq_len=seq_len)
+    test_ds  = SequenceSurfaceDataset(master_file_path=args.test_data, seq_len=seq_len)
+
+    # ── Naive baseline ────────────────────────────────────────────────────────
+    print("Computing naive baseline MAE on test set ...")
+    naive = naive_mae(test_ds)
+    print(f"  Naive MAE (test) : {naive:.6f}\n")
+
+    # ── DataLoaders ───────────────────────────────────────────────────────────
+    train_loader = DataLoader(
+        train_ds,
+        batch_size  = batch_size,
+        shuffle     = True,
+        num_workers = args.num_workers,
+        prefetch_factor = 2 if args.num_workers > 0 else None,
+        pin_memory  = device.type == "cuda",
+        persistent_workers = args.num_workers > 0,
+    )
+    test_loader = DataLoader(
+        test_ds,
+        batch_size  = batch_size,
+        shuffle     = False,
+        num_workers = args.num_workers,
+        prefetch_factor = 2 if args.num_workers > 0 else None,
+        pin_memory  = device.type == "cuda",
+        persistent_workers = args.num_workers > 0,
+    )
+
+    # ── Model & Optimizer ─────────────────────────────────────────────────────
+    model = SurfaceSequenceModel(
+        seq_len    = seq_len,
+        img_dim    = img_dim,
+        ticker_dim = ticker_dim,
+        dropout    = dropout,
+        embed_dim  = embed_dim,
+        num_heads  = num_heads,
+        num_layers = num_layers,
+        hidden_dim = hidden_dim
+    ).to(device)
+
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Model params: {n_params:,}\n")
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    best_test_mae = float('inf')
+
+    # ── Training loop ─────────────────────────────────────────────────────────
+    for epoch in range(1, args.epochs + 1):
+        t0 = time.time()
+
+        train_mae, train_n = run_epoch_decoder(model, train_loader, optimizer, device, train=True)
+        test_mae,  test_n  = run_epoch_decoder(model, test_loader,  optimizer, device, train=False)
+
+        elapsed = time.time() - t0
+
+        # Track the best model
+        is_best = False
+        if test_mae < best_test_mae:
+            best_test_mae = test_mae
+            is_best = True
+
+        best_tag = "[NEW BEST!]" if is_best else ""
+
+        print(f"Epoch {epoch:>3}/{args.epochs} "
+              f"Train MAE: {train_mae:.6f} "
+              f"Test MAE:  {test_mae:.6f} "
+              f"Naive: {naive:.6f} "
+              f"{elapsed:.1f}s {best_tag}")
+
+        # ── Save model ────────────────────────────────────────────────────────
+        save_path = f"{args.save_path}_epoch{epoch}.pt"
+        torch.save({
+            "epoch":                epoch,
+            "model_state_dict":     model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "epochs_trained":       args.epochs,
+            "final_train_mae":      train_mae,
+            "final_test_mae":       test_mae,
+            "naive_mae":            naive,
+            "option_type":          args.option_type,
+            "hyperparameters": {
+                "lr":         lr,
+                "batch_size": batch_size,
+                "seq_len":    seq_len,
+                "embed_dim":  embed_dim,
+                "num_heads":  num_heads,
+                "num_layers": num_layers,
+                "dropout":    dropout,
+                "hidden_dim": hidden_dim,
+                "img_dim":    img_dim,
+                "ticker_dim": ticker_dim
+            }
+        }, save_path)
+
+    print(f"\nTraining Complete. Best Test MAE: {best_test_mae:.6f}")
 
 if __name__ == "__main__":
     main()

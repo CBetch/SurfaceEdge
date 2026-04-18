@@ -1,0 +1,216 @@
+$ python3 Main/main.py
+Device      : cuda
+Train Data  : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt
+Test Data   : C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt
+
+==================================================
+TRAINING SEQUENCE DECODER WITH FIXED HYPERPARAMETERS
+==================================================
+LR         : 1e-05
+Batch Size : 16 (Lowered for Sequence VRAM limit)
+Seq Len    : 25
+Embed Dim  : 256
+Num Heads  : 4
+Num Layers : 2
+Dropout    : 0.2
+Hidden Dim : 128
+Img Dim    : 64
+Ticker Dim : 128
+--------------------------------------------------
+
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_train.pt into RAM...
+Loaded 1,101,255 flat contract days. Grouping sequences...
+Successfully built 1,101,255 valid 25-day sequences.
+Loading C:/Users/Troyb/cygwin/Troyb/repos/SurfaceEdge/data/master_dataset_test.pt into RAM...
+Loaded 347,229 flat contract days. Grouping sequences...
+Successfully built 347,229 valid 25-day sequences.
+Computing naive baseline MAE on test set ...
+  Naive MAE (test) : 0.137615
+
+Model params: 2,837,889
+
+Test :   3%|2         | 609/21702 [00:27<03:30, 100.37batch/s]C:\Users\Troyb\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\nn\modules\transformer.py:531: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\aten\src\ATen\NestedTensorImpl.cpp:182.)
+  output = torch._nested_tensor_from_mask(
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0058  |  Target:  +0.0088  |  Error: 0.0146
+Pred:  -0.0038  |  Target:  +0.0191  |  Error: 0.0229
+Pred:  -0.0055  |  Target:  +0.0143  |  Error: 0.0198
+Pred:  -0.0038  |  Target:  +0.0157  |  Error: 0.0195
+Pred:  -0.0125  |  Target:  +0.0095  |  Error: 0.0221
+Pred:  -0.0059  |  Target:  +0.0083  |  Error: 0.0142
+Pred:  -0.0037  |  Target:  +0.0221  |  Error: 0.0258
+Pred:  -0.0051  |  Target:  +0.0148  |  Error: 0.0199
+Pred:  -0.0043  |  Target:  -0.0010  |  Error: 0.0033
+Pred:  -0.0043  |  Target:  +0.0174  |  Error: 0.0217
+
+Prediction StdDev: 0.002357
+--------------------------------------------
+
+Epoch   1/10 Train MAE: 0.141744 Test MAE:  0.131675 Naive: 0.137615 1933.6s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0018  |  Target:  +0.0088  |  Error: 0.0106
+Pred:  -0.0019  |  Target:  +0.0191  |  Error: 0.0211
+Pred:  -0.0032  |  Target:  +0.0143  |  Error: 0.0175
+Pred:  -0.0035  |  Target:  +0.0157  |  Error: 0.0192
+Pred:  -0.0063  |  Target:  +0.0095  |  Error: 0.0158
+Pred:  -0.0018  |  Target:  +0.0083  |  Error: 0.0100
+Pred:  -0.0011  |  Target:  +0.0221  |  Error: 0.0232
+Pred:  -0.0022  |  Target:  +0.0148  |  Error: 0.0170
+Pred:  -0.0025  |  Target:  -0.0010  |  Error: 0.0015
+Pred:  -0.0030  |  Target:  +0.0174  |  Error: 0.0204
+
+Prediction StdDev: 0.001289
+--------------------------------------------
+
+Epoch   2/10 Train MAE: 0.133362 Test MAE:  0.130372 Naive: 0.137615 1891.3s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0018  |  Target:  +0.0088  |  Error: 0.0106
+Pred:  -0.0022  |  Target:  +0.0191  |  Error: 0.0214
+Pred:  -0.0032  |  Target:  +0.0143  |  Error: 0.0175
+Pred:  -0.0037  |  Target:  +0.0157  |  Error: 0.0194
+Pred:  -0.0058  |  Target:  +0.0095  |  Error: 0.0153
+Pred:  -0.0014  |  Target:  +0.0083  |  Error: 0.0097
+Pred:  -0.0003  |  Target:  +0.0221  |  Error: 0.0224
+Pred:  -0.0023  |  Target:  +0.0148  |  Error: 0.0171
+Pred:  -0.0029  |  Target:  -0.0010  |  Error: 0.0019
+Pred:  -0.0033  |  Target:  +0.0174  |  Error: 0.0207
+
+Prediction StdDev: 0.001195
+--------------------------------------------
+
+Epoch   3/10 Train MAE: 0.131920 Test MAE:  0.128299 Naive: 0.137615 1890.3s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  +0.0005  |  Target:  +0.0088  |  Error: 0.0083
+Pred:  +0.0003  |  Target:  +0.0191  |  Error: 0.0189
+Pred:  -0.0003  |  Target:  +0.0143  |  Error: 0.0147
+Pred:  -0.0006  |  Target:  +0.0157  |  Error: 0.0162
+Pred:  -0.0021  |  Target:  +0.0095  |  Error: 0.0117
+Pred:  +0.0007  |  Target:  +0.0083  |  Error: 0.0076
+Pred:  +0.0013  |  Target:  +0.0221  |  Error: 0.0208
+Pred:  +0.0004  |  Target:  +0.0148  |  Error: 0.0144
+Pred:  -0.0002  |  Target:  -0.0010  |  Error: 0.0008
+Pred:  -0.0004  |  Target:  +0.0174  |  Error: 0.0178
+
+Prediction StdDev: 0.000764
+--------------------------------------------
+
+Epoch   4/10 Train MAE: 0.130807 Test MAE:  0.127798 Naive: 0.137615 1885.9s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0005  |  Target:  +0.0088  |  Error: 0.0094
+Pred:  -0.0012  |  Target:  +0.0191  |  Error: 0.0203
+Pred:  -0.0010  |  Target:  +0.0143  |  Error: 0.0153
+Pred:  -0.0019  |  Target:  +0.0157  |  Error: 0.0176
+Pred:  -0.0046  |  Target:  +0.0095  |  Error: 0.0141
+Pred:  -0.0004  |  Target:  +0.0083  |  Error: 0.0086
+Pred:  -0.0001  |  Target:  +0.0221  |  Error: 0.0222
+Pred:  -0.0007  |  Target:  +0.0148  |  Error: 0.0155
+Pred:  -0.0013  |  Target:  -0.0010  |  Error: 0.0003
+Pred:  -0.0016  |  Target:  +0.0174  |  Error: 0.0190
+
+Prediction StdDev: 0.001081
+--------------------------------------------
+
+Epoch   5/10 Train MAE: 0.130049 Test MAE:  0.127004 Naive: 0.137615 1886.2s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0016  |  Target:  +0.0088  |  Error: 0.0105
+Pred:  -0.0018  |  Target:  +0.0191  |  Error: 0.0210
+Pred:  -0.0021  |  Target:  +0.0143  |  Error: 0.0165
+Pred:  -0.0026  |  Target:  +0.0157  |  Error: 0.0183
+Pred:  -0.0060  |  Target:  +0.0095  |  Error: 0.0156
+Pred:  -0.0015  |  Target:  +0.0083  |  Error: 0.0098
+Pred:  -0.0008  |  Target:  +0.0221  |  Error: 0.0230
+Pred:  -0.0012  |  Target:  +0.0148  |  Error: 0.0160
+Pred:  -0.0014  |  Target:  -0.0010  |  Error: 0.0004
+Pred:  -0.0016  |  Target:  +0.0174  |  Error: 0.0190
+
+Prediction StdDev: 0.001317
+--------------------------------------------
+
+Epoch   6/10 Train MAE: 0.129404 Test MAE:  0.127747 Naive: 0.137615 1885.4s
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0020  |  Target:  +0.0088  |  Error: 0.0108
+Pred:  -0.0023  |  Target:  +0.0191  |  Error: 0.0214
+Pred:  -0.0023  |  Target:  +0.0143  |  Error: 0.0167
+Pred:  -0.0029  |  Target:  +0.0157  |  Error: 0.0186
+Pred:  -0.0048  |  Target:  +0.0095  |  Error: 0.0143
+Pred:  -0.0019  |  Target:  +0.0083  |  Error: 0.0102
+Pred:  -0.0013  |  Target:  +0.0221  |  Error: 0.0234
+Pred:  -0.0016  |  Target:  +0.0148  |  Error: 0.0164
+Pred:  -0.0020  |  Target:  -0.0010  |  Error: 0.0010
+Pred:  -0.0021  |  Target:  +0.0174  |  Error: 0.0195
+
+Prediction StdDev: 0.000905
+--------------------------------------------
+
+Epoch   7/10 Train MAE: 0.129011 Test MAE:  0.126935 Naive: 0.137615 1883.5s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0008  |  Target:  +0.0088  |  Error: 0.0096
+Pred:  -0.0011  |  Target:  +0.0191  |  Error: 0.0203
+Pred:  -0.0011  |  Target:  +0.0143  |  Error: 0.0154
+Pred:  -0.0018  |  Target:  +0.0157  |  Error: 0.0174
+Pred:  -0.0029  |  Target:  +0.0095  |  Error: 0.0125
+Pred:  -0.0007  |  Target:  +0.0083  |  Error: 0.0090
+Pred:  -0.0002  |  Target:  +0.0221  |  Error: 0.0223
+Pred:  -0.0002  |  Target:  +0.0148  |  Error: 0.0150
+Pred:  -0.0010  |  Target:  -0.0010  |  Error: 0.0000
+Pred:  -0.0011  |  Target:  +0.0174  |  Error: 0.0186
+
+Prediction StdDev: 0.000795
+--------------------------------------------
+
+Epoch   8/10 Train MAE: 0.128630 Test MAE:  0.126755 Naive: 0.137615 1881.7s [NEW BEST!]
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  +0.0016  |  Target:  +0.0088  |  Error: 0.0073
+Pred:  +0.0013  |  Target:  +0.0191  |  Error: 0.0178
+Pred:  +0.0011  |  Target:  +0.0143  |  Error: 0.0132
+Pred:  +0.0005  |  Target:  +0.0157  |  Error: 0.0152
+Pred:  -0.0005  |  Target:  +0.0095  |  Error: 0.0100
+Pred:  +0.0016  |  Target:  +0.0083  |  Error: 0.0066
+Pred:  +0.0022  |  Target:  +0.0221  |  Error: 0.0199
+Pred:  +0.0023  |  Target:  +0.0148  |  Error: 0.0125
+Pred:  +0.0014  |  Target:  -0.0010  |  Error: 0.0024
+Pred:  +0.0015  |  Target:  +0.0174  |  Error: 0.0160
+
+Prediction StdDev: 0.000800
+--------------------------------------------
+
+Epoch   9/10 Train MAE: 0.128260 Test MAE:  0.128540 Naive: 0.137615 1883.7s
+
+
+--- SANITY CHECK: PREDICTIONS VS TARGETS ---
+Pred:  -0.0016  |  Target:  +0.0088  |  Error: 0.0105
+Pred:  -0.0027  |  Target:  +0.0191  |  Error: 0.0218
+Pred:  -0.0021  |  Target:  +0.0143  |  Error: 0.0164
+Pred:  -0.0034  |  Target:  +0.0157  |  Error: 0.0191
+Pred:  -0.0039  |  Target:  +0.0095  |  Error: 0.0134
+Pred:  -0.0015  |  Target:  +0.0083  |  Error: 0.0098
+Pred:  -0.0014  |  Target:  +0.0221  |  Error: 0.0235
+Pred:  -0.0014  |  Target:  +0.0148  |  Error: 0.0161
+Pred:  -0.0027  |  Target:  -0.0010  |  Error: 0.0017
+Pred:  -0.0025  |  Target:  +0.0174  |  Error: 0.0199
+
+Prediction StdDev: 0.000909
+--------------------------------------------
+
+Epoch  10/10 Train MAE: 0.127888 Test MAE:  0.127087 Naive: 0.137615 1871.6s
+
+Training Complete. Best Test MAE: 0.126755
+

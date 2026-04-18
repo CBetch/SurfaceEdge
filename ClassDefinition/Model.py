@@ -188,3 +188,127 @@ class SurfaceEdgeModelDeepHead(torch.nn.Module):
         out_6 = self.out(out_5)
 
         return out_6
+
+
+class SurfaceSequenceModel(torch.nn.Module):
+    def __init__(self,
+                 seq_len=25,                 # <-- NEW: Sequence length
+                 image_channels=3, image_size=224, img_dim=238,
+                 num_tickers=104, ticker_dim=128, dropout=0.2,
+                 embed_dim=256, num_heads=4, num_layers=2, # <-- NEW: Transformer hyperparams
+                 hidden_dim=64, out_dim=1):
+        super().__init__()
+        self.seq_len = seq_len
+
+        ## IMAGE PROCESSING (Unchanged) ##
+        self.conv1 = torch.nn.Conv2d(in_channels=image_channels, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.pool3 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.global_pool = torch.nn.AdaptiveAvgPool2d((1, 1))
+        self.fc_image = torch.nn.Linear(128, img_dim)
+
+        ## TICKER PROCESSING (Unchanged) ##
+        self.ticker_embedding = torch.nn.Embedding(num_tickers, ticker_dim)
+
+        ## COMBINED FEATURE DIMENSION ##
+        # count_in_features = img_dim + ticker_dim + 1 + 1 + 1 + 1 + 10 Now includes the label ONLY FOR HISTORICAL 
+        count_in_features = img_dim + ticker_dim + 1 + 1 + 1 + 1 + 11
+
+        ## SEQUENCE PROCESSING (NEW) ##
+        # 1. Project the concatenated features to the Transformer's hidden dimension
+        self.input_proj = torch.nn.Linear(count_in_features, embed_dim)
+        
+        # 2. Positional Encoding (Crucial for the model to understand time flow)
+        self.pos_encoder = torch.nn.Parameter(torch.randn(1, seq_len, embed_dim))
+        
+        # 3. Self-Attention Transformer Layers
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+            d_model=embed_dim, 
+            nhead=num_heads, 
+            batch_first=True, 
+            dropout=dropout
+        )
+        self.transformer = torch.nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        ## FINAL MLP ##
+        # Note: Now takes embed_dim instead of count_in_features
+        self.layer1 = torch.nn.Linear(embed_dim, hidden_dim)
+        self.dropout = torch.nn.Dropout(dropout)
+        self.norm = torch.nn.LayerNorm(hidden_dim)
+        self.out = torch.nn.Linear(hidden_dim, out_dim)
+
+    def forward(self,
+        image,          # Shape: [Batch, SeqLen, Channels, H, W]
+        tau,            # Shape: [Batch, SeqLen]
+        log_moneyness,  # Shape: [Batch, SeqLen]
+        is_call,        # Shape: [Batch, SeqLen]
+        mark,           # Shape: [Batch, SeqLen]
+        stats,          # Shape: [Batch, SeqLen, 10]
+        ticker,         # Shape: [Batch]  (Constant per sequence)
+        padding_mask=None # <-- NEW: Shape [Batch, SeqLen]. True for padding days, False for real days
+    ):
+        B, S = image.shape[0], image.shape[1]
+
+        ## IMAGE PROCESSING ##
+        # Flatten Batch and Sequence dimensions to push through CNN at once
+        C, H, W = image.shape[2], image.shape[3], image.shape[4]
+        flat_image = image.view(B * S, C, H, W)
+
+        x_image = F.relu(self.conv1(flat_image))
+        x_image = self.pool1(x_image)
+        x_image = F.relu(self.conv2(x_image))
+        x_image = self.pool2(x_image)
+        x_image = F.relu(self.conv3(x_image))
+        x_image = self.pool3(x_image)
+
+        x_image = self.global_pool(x_image)
+        x_image = torch.flatten(x_image, 1)
+        x_image = F.relu(self.fc_image(x_image))
+
+        # Unflatten back to sequence format
+        x_image = x_image.view(B, S, -1)  # Shape: [Batch, SeqLen, img_dim]
+
+        ## TICKER PROCESSING ##
+        x_ticker = self.ticker_embedding(ticker) # Shape: [Batch, ticker_dim]
+        # Expand ticker across the sequence dimension
+        x_ticker = x_ticker.unsqueeze(1).expand(-1, S, -1) # Shape: [Batch, SeqLen, ticker_dim]
+
+        ## SCALAR PROCESSING ##
+        # Unsqueeze the last dimension to allow concatenation
+        tau = tau.unsqueeze(-1)                     # Shape: [Batch, SeqLen, 1]
+        log_moneyness = log_moneyness.unsqueeze(-1) # Shape: [Batch, SeqLen, 1]
+        is_call = is_call.unsqueeze(-1).float()     # Shape: [Batch, SeqLen, 1]
+        mark = mark.unsqueeze(-1)                   # Shape: [Batch, SeqLen, 1]
+        # 'stats' is already [Batch, SeqLen, 10]
+
+        ## CONCATENATION ##
+        # Cat all features along the last dimension (dim=2 or -1)
+        features = torch.cat((x_image, x_ticker, tau, log_moneyness, is_call, mark, stats), dim=-1)
+
+        ## SEQUENCE PROCESSING (NEW) ##
+        # 1. Project to Transformer dimension
+        x_seq = self.input_proj(features)
+        
+        # 2. Add Positional Encoding
+        x_seq = x_seq + self.pos_encoder
+        
+        # 3. Apply Self-Attention
+        # The padding mask ensures attention is not paid to fake/padded days for young contracts
+        x_seq = self.transformer(x_seq, src_key_padding_mask=padding_mask)
+
+        ## FINAL HEAD ##
+        # Extract the representation of the *last* day in the sequence (Day t) to predict Day t+1
+        x_last = x_seq[:, -1, :] # Shape: [Batch, embed_dim]
+
+        out_1 = self.layer1(x_last)
+        out_1 = self.norm(out_1)
+        out_1 = F.relu(out_1)
+        out_1 = self.dropout(out_1)
+
+        out_2 = self.out(out_1)
+
+        return out_2
