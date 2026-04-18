@@ -17,7 +17,7 @@ import sys
 
 SEROOT = os.environ.get('SEROOT', '.')
 sys.path.append(SEROOT)
-from ClassDefinition.Model import SurfaceEdgeModel
+from ClassDefinition.Model import SurfaceEdgeModelBaseline, SurfaceEdgeModelDeepHead
 from ClassDefinition.SurfaceDataset import SurfaceDataset
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -281,7 +281,7 @@ def main():
     )
 
     # ── Model & Optimizer ─────────────────────────────────────────────────────
-    model = SurfaceEdgeModel(
+    model = SurfaceEdgeModelDeepHead(
         img_dim    = img_dim,
         ticker_dim = ticker_dim,
         dropout    = dropout,
