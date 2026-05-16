@@ -17,7 +17,7 @@ import sys
 
 SEROOT = os.environ.get('SEROOT', '.')
 sys.path.append(SEROOT)
-from ClassDefinition.Model import SurfaceEdgeModelBaseline, SurfaceEdgeModelDeepHead, SurfaceSequenceModel
+from ClassDefinition.Model import SurfaceEdgeModelBaseline, SurfaceEdgeModelDeepHead, SurfaceSequenceModel, SurfaceSequenceTextModel
 from ClassDefinition.SurfaceDataset import SurfaceDataset, SequenceSurfaceDataset 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument("--lr",          type=float, default=1e-4)
     parser.add_argument("--num_workers", type=int,   default=4)
     parser.add_argument("--save_path",   type=str,   default=f"{SEROOT}/Artifacts/surfaceedge")
+    parser.add_argument("--text_data",   type=str,   default=f"{SEROOT}/data/bluesky_embeddings.parquet")
     return parser.parse_args()
 
 # ── Training ──────────────────────────────────────────────────────────────────
@@ -560,5 +561,113 @@ def main():
 
     print(f"\nTraining Complete. Best Test MAE: {best_test_mae:.6f}")
 
+def run_epoch_text_decoder(model, loader, optimizer, device, train: bool, accum_steps: int = 16) -> tuple[float, int]:
+    model.train(train)
+    total_loss = 0.0
+    total_n    = 0
+
+    desc = "Train" if train else "Test "
+
+    if train:
+        optimizer.zero_grad()
+
+    with torch.set_grad_enabled(train):
+        for i, batch in enumerate(tqdm(loader, desc=desc, unit="batch", leave=False)):
+
+            # NEW: Catch the 10 variables, including text_emb
+            image, tau, log_moneyness, is_call, mark, stats, ticker, text_emb, label, padding_mask = [b.to(device) for b in batch]
+
+            # Forward pass
+            preds = model(
+                image         = image,
+                tau           = tau,
+                log_moneyness = log_moneyness,
+                is_call       = is_call,
+                mark          = mark,
+                stats         = stats,
+                ticker        = ticker,
+                text_emb      = text_emb, # NEW: Pass text embeddings to model
+                padding_mask  = padding_mask, 
+            ).squeeze(1)
+
+            loss = torch.mean(torch.abs(preds - label))
+
+            if train:
+                scaled_loss = loss / accum_steps
+                scaled_loss.backward()
+
+                if (i + 1) % accum_steps == 0 or (i + 1) == len(loader):
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+            total_loss += loss.item() * len(label)
+            total_n    += len(label)
+
+    return total_loss / total_n, total_n
+
+def text_sequence_decoder():
+    args   = parse_args()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device      : {device}")
+    print(f"Train Data  : {args.train_data}")
+    print(f"Test Data   : {args.test_data}")
+    print(f"Text Data   : {args.text_data}")
+    print()
+
+    # ── Fixed Hyperparameters (Matches your baseline) ─────────────────────────
+    lr         = 1e-05
+    batch_size = 16
+    dropout    = 0.2
+    hidden_dim = 128
+    img_dim    = 64
+    ticker_dim = 128
+    text_out_dim = 64
+
+    # ── Transformer Hyperparameters ──────────────────────────────────────────
+    seq_len    = 25
+    embed_dim  = 256
+    num_heads  = 4
+    num_layers = 2
+
+    print(f"{'='*50}")
+    print("TRAINING SEQUENCE TEXT DECODER")
+    print(f"{'='*50}\n")
+
+    # ── Datasets & Loaders ────────────────────────────────────────────────────
+    from ClassDefinition.SurfaceDataset import SequenceTextSurfaceDataset
+    
+    train_ds = SequenceTextSurfaceDataset(master_file_path=args.train_data, text_data_path=args.text_data, seq_len=seq_len)
+    test_ds  = SequenceTextSurfaceDataset(master_file_path=args.test_data, text_data_path=args.text_data, seq_len=seq_len)
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    test_loader  = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+
+    # ── Model & Optimizer ─────────────────────────────────────────────────────
+    model = SurfaceSequenceTextModel(
+        seq_len      = seq_len,
+        img_dim      = img_dim,
+        ticker_dim   = ticker_dim,
+        text_out_dim = text_out_dim,
+        dropout      = dropout,
+        embed_dim    = embed_dim,
+        num_heads    = num_heads,
+        num_layers   = num_layers,
+        hidden_dim   = hidden_dim
+    ).to(device)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # ── Training Loop ─────────────────────────────────────────────────────────
+    for epoch in range(1, args.epochs + 1):
+        t0 = time.time()
+
+        train_mae, _ = run_epoch_text_decoder(model, train_loader, optimizer, device, train=True)
+        test_mae, _  = run_epoch_text_decoder(model, test_loader, optimizer, device, train=False)
+
+        elapsed = time.time() - t0
+        print(f"Epoch {epoch:>3} | Train MAE: {train_mae:.6f} | Test MAE: {test_mae:.6f} | {elapsed:.1f}s")
+
+
+
 if __name__ == "__main__":
-    main()
+    text_sequence_decoder()

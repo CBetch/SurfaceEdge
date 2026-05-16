@@ -312,3 +312,110 @@ class SurfaceSequenceModel(torch.nn.Module):
         out_2 = self.out(out_1)
 
         return out_2
+
+
+import torch
+import torch.nn as nn
+
+class SurfaceSequenceTextModel(nn.Module):
+    def __init__(self,
+                 seq_len=25,
+                 image_channels=3, img_dim=238,
+                 num_tickers=104, ticker_dim=128, 
+                 text_out_dim=64, # NEW: Text projection size
+                 dropout=0.2,
+                 embed_dim=256, num_heads=4, num_layers=2,
+                 hidden_dim=64, out_dim=1):
+        super().__init__()
+        self.seq_len = seq_len
+
+        ## 1. IMAGE PROCESSING (Strict Copy) ##
+        self.conv1 = nn.Conv2d(image_channels, 32, kernel_size=3, stride=1, padding=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc_image = nn.Linear(128, img_dim)
+
+        ## 2. TICKER PROCESSING (Strict Copy) ##
+        self.ticker_embedding = nn.Embedding(num_tickers, ticker_dim)
+
+        ## 3. TEXT PROCESSING (NEW) ##
+        self.text_proj = nn.Linear(768, text_out_dim)
+
+        ## 4. COMBINED FEATURE DIMENSION ##
+        # img(238) + ticker(128) + scalars(4) + stats(11) + text(64) = 445
+        count_in_features = img_dim + ticker_dim + 1 + 1 + 1 + 1 + 11 + text_out_dim
+
+        ## 5. SEQUENCE PROCESSING (Strict Copy) ##
+        self.input_proj = nn.Linear(count_in_features, embed_dim)
+        self.pos_encoder = nn.Parameter(torch.randn(1, seq_len, embed_dim))
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim,
+            nhead=num_heads,
+            batch_first=True,
+            dropout=dropout
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        ## 6. FINAL MLP (Strict Copy) ##
+        self.layer1 = nn.Linear(embed_dim, hidden_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(hidden_dim)
+        self.out = nn.Linear(hidden_dim, out_dim)
+
+    def forward(self, image, tau, log_moneyness, is_call, mark, stats, ticker, text_emb, padding_mask=None):
+        B, S = image.shape[0], image.shape[1]
+
+        ## IMAGE PROCESSING ##
+        C, H, W = image.shape[2], image.shape[3], image.shape[4]
+        flat_image = image.view(B * S, C, H, W)
+
+        x_image = F.relu(self.conv1(flat_image))
+        x_image = self.pool1(x_image)
+        x_image = F.relu(self.conv2(x_image))
+        x_image = self.pool2(x_image)
+        x_image = F.relu(self.conv3(x_image))
+        x_image = self.pool3(x_image)
+
+        x_image = self.global_pool(x_image)
+        x_image = torch.flatten(x_image, 1)
+        x_image = F.relu(self.fc_image(x_image))
+        x_image = x_image.view(B, S, -1) 
+
+        ## TICKER PROCESSING ##
+        x_ticker = self.ticker_embedding(ticker)
+        x_ticker = x_ticker.unsqueeze(1).expand(-1, S, -1)
+
+        ## TEXT PROCESSING (NEW) ##
+        # text_emb is [B, S, 768] -> [B, S, 64]
+        x_text = F.relu(self.text_proj(text_emb))
+
+        ## SCALAR PROCESSING ##
+        tau = tau.unsqueeze(-1)
+        log_moneyness = log_moneyness.unsqueeze(-1)
+        is_call = is_call.unsqueeze(-1).float()
+        mark = mark.unsqueeze(-1)
+
+        ## CONCATENATION ##
+        # Added x_text to the end of the feature vector
+        features = torch.cat((x_image, x_ticker, tau, log_moneyness, is_call, mark, stats, x_text), dim=-1)
+
+        ## SEQUENCE PROCESSING ##
+        x_seq = self.input_proj(features)
+        x_seq = x_seq + self.pos_encoder
+        x_seq = self.transformer(x_seq, src_key_padding_mask=padding_mask)
+
+        ## FINAL HEAD ##
+        x_last = x_seq[:, -1, :] 
+
+        out_1 = self.layer1(x_last)
+        out_1 = self.norm(out_1)
+        out_1 = F.relu(out_1)
+        out_1 = self.dropout(out_1)
+
+        return self.out(out_1)

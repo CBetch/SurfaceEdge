@@ -194,3 +194,74 @@ class SequenceSurfaceDataset(Dataset):
         # Notice we are now returning 9 items (added padding_mask)
         return images, tau, log_moneyness, is_call, mark, stats, ticker, target_label, padding_mask
 
+
+import pandas as pd
+
+
+class SequenceTextSurfaceDataset(SequenceSurfaceDataset):
+    def __init__(self, master_file_path: str, text_data_path: str, seq_len: int = 25):
+        # 1. Initialize parent to build sequences, load img_paths, and scalars
+        super().__init__(master_file_path=master_file_path, seq_len=seq_len)
+
+        # 2. Load Parquet embeddings into a high-speed lookup dictionary
+        self.text_lookup = {}
+        if text_data_path and os.path.exists(text_data_path):
+            print(f"Loading text embeddings from {text_data_path}...")
+            df = pd.read_parquet(text_data_path)
+            
+            # Map (date_string, ticker_integer) -> 768-dim tensor
+            for _, row in df.iterrows():
+                d_str = str(row['date'])
+                t_int = int(row['ticker'])
+                emb_tensor = torch.tensor(row['embedding'], dtype=torch.float32)
+                self.text_lookup[(d_str, t_int)] = emb_tensor
+                
+            print(f"Successfully mapped {len(self.text_lookup)} text embeddings.")
+        else:
+            raise FileNotFoundError(f"Could not find text data at {text_data_path}")
+
+    def __getitem__(self, idx: int):
+        # 1. Fetch the original 9 items from the parent
+        # images, tau, log_moneyness, is_call, mark, stats, ticker, target_label, padding_mask
+        base_data = super().__getitem__(idx)
+        
+        # Unpack for clarity
+        images, tau, log_moneyness, is_call, mark, stats, ticker, target_label, padding_mask = base_data
+        
+        # 2. Identify the specific days in this sequence
+        seq_indices = self.valid_sequences[idx]
+        actual_len = len(seq_indices)
+        pad_len = self.seq_len - actual_len
+        ticker_val = ticker.item()
+
+        # 3. Retrieve text embeddings for the valid days
+        text_seq = []
+        for i in seq_indices:
+            # Extract date from the path using your original logic (YYYY-MM-DD_...)
+            filename = os.path.basename(self.img_paths[i])
+            date_str = filename.split('_')[0]
+            
+            # Get embedding or default to zeros if data was missing for that day
+            emb = self.text_lookup.get((date_str, ticker_val), torch.zeros(768))
+            text_seq.append(emb)
+            
+        text_emb_tensor = torch.stack(text_seq) # [actual_len, 768]
+
+        # 4. Apply Zero-Padding to match images and scalars (Pre-padding)
+        if pad_len > 0:
+            pad_txt = torch.zeros(pad_len, 768)
+            text_emb_tensor = torch.cat([pad_txt, text_emb_tensor], dim=0) # [seq_len, 768]
+
+        # 5. Return 10 items in the order expected by run_epoch_text_decoder
+        return (
+            images,           # [seq_len, 3, H, W]
+            tau,              # [seq_len]
+            log_moneyness,    # [seq_len]
+            is_call,          # [seq_len]
+            mark,             # [seq_len]
+            stats,            # [seq_len, 11]
+            ticker,           # [1]
+            text_emb_tensor,  # [seq_len, 768]  <-- NEW
+            target_label,     # [1]
+            padding_mask      # [seq_len]
+        )
